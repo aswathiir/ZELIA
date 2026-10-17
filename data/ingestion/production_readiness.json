@@ -1,0 +1,122 @@
+{
+  "status": "ready",
+  "checks": {
+    "env": [
+      {
+        "key": "PINECONE_API_KEY",
+        "present": true
+      },
+      {
+        "key": "OPENAI_API_KEY",
+        "present": true
+      },
+      {
+        "key": "N8N_BASIC_AUTH_USER",
+        "present": true
+      },
+      {
+        "key": "N8N_BASIC_AUTH_PASSWORD",
+        "present": true
+      },
+      {
+        "key": "ULTRAVOX_API_KEY",
+        "present": true
+      }
+    ],
+    "services": [
+      {
+        "name": "n8n",
+        "ok": true,
+        "detail": "{\"status\":\"ok\"}"
+      },
+      {
+        "name": "retrieval",
+        "ok": true,
+        "detail": "{\"annoy\":{\"index_built\":true,\"ready\":true,\"total_vectors\":21},\"embedding_dim\":384,\"model\":\"sentence-transformers/all-MiniLM-L6-v2\",\"pinecone\":{\"index_name\":\"zelia\",\"required\":false,\"status\":\"not_configured\"},\"retrieval_mode\":\"pinecone_primary_annoy_fallback\",\"service\":\"retrieval-service\",\"status\":\"healthy\",\"timestamp\":\"2026-03-01T06:26:07.177391\"}\n"
+      },
+      {
+        "name": "rules",
+        "ok": true,
+        "detail": "{\"status\":\"healthy\",\"service\":\"Rules Engine\"}"
+      },
+      {
+        "name": "document_processor",
+        "ok": true,
+        "detail": "{\"status\":\"healthy\",\"service\":\"document-processor\",\"db_ready\":true,\"minio_ready\":true}"
+      },
+      {
+        "name": "submission",
+        "ok": true,
+        "detail": "{\"status\":\"up\",\"service\":\"submission-service\",\"db_ready\":true,\"minio_connected\":true,\"role_enforcement\":true,\"aadhaar_qr_strict\":false,\"aadhaar_qr_decoder\":\"opencv\",\"uidai_public_key_configured\":false}"
+      },
+      {
+        "name": "voice",
+        "ok": true,
+        "detail": "{\"status\":\"ok\",\"service\":\"voice-processor\",\"asr_backend\":\"faster-whisper\",\"asr_dependency_ready\":true,\"asr_ready\":true,\"asr_strict\":false,\"asr_error\":null,\"asr_config\":{\"model\":\"base\",\"device\":\"cpu\",\"compute_type\":\"int8\",\"beam_size\":5,\"temperature\":0.0,\"condition_on_previous_text\":false,\"language_prompts\":true,\"vad_filter\":true},\"tts_backend\":\"pyttsx3 (optional)\"}"
+      },
+      {
+        "name": "voice_asr",
+        "ok": true,
+        "detail": "{\"asr_dependency_ready\":true,\"asr_ready\":true,\"error\":null,\"strict\":false,\"model\":\"base\"}"
+      }
+    ],
+    "ports": [
+      {
+        "name": "postgres",
+        "host": "localhost",
+        "port": 5432,
+        "ok": true
+      },
+      {
+        "name": "minio",
+        "host": "localhost",
+        "port": 9000,
+        "ok": true
+      },
+      {
+        "name": "n8n",
+        "host": "localhost",
+        "port": 5678,
+        "ok": true
+      }
+    ],
+    "schema_markers": {
+      "pdf_template_key": true,
+      "reviewer_id": true,
+      "review_notes": true,
+      "filled_pdf_uri": true
+    },
+    "security": {
+      "submission_role_enforcement_enabled": true,
+      "hashed_identifier_usage_expected": true,
+      "minio_buckets_scoped": true,
+      "retrieval_mode_configured": true
+    },
+    "minio": {
+      "available": true,
+      "buckets": {
+        "templates": {
+          "exists": true
+        },
+        "filled-forms": {
+          "exists": true
+        },
+        "verified-docs": {
+          "exists": true
+        }
+      },
+      "bucket_policy": {
+        "templates": true,
+        "filled-forms": true,
+        "verified-docs": false
+      }
+    }
+  },
+  "next_steps": [
+    "Run database migrations if schema markers fail in live DB.",
+    "Start missing services with docker compose up -d --build.",
+    "Populate Pinecone index with scripts/seed_pinecone_top_states.py.",
+    "Upload templates to MinIO bucket templates/ before E2E execution.",
+    "Enable role enforcement in submission-service for CHW endpoints."
+  ]
+}

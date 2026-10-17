@@ -1,0 +1,48 @@
+{
+  "call_id": "pipeline_test_1772003107",
+  "household_hash": "hh_pipeline_test_1772003107",
+  "timestamp": "2026-02-25T07:05:09Z",
+  "phase1_incomplete": {
+    "fields_filled": 4,
+    "fields_total": 11,
+    "confidence": 0.36363636363636365
+  },
+  "phase2_ocr": {
+    "document_type": "aadhaar",
+    "extracted_fields": {
+      "name": "Lakshmi Devi",
+      "dob": null,
+      "gender": "Female",
+      "address": "House No 42 Kuvempunagar Mysuru Karnataka 57",
+      "aadhaar_number": "1234 5678 9012",
+      "pincode": null
+    },
+    "stored": true
+  },
+  "phase3_autofill": {
+    "fields_filled": [
+      "gender",
+      "address",
+      "aadhaar_number"
+    ],
+    "fill_sources": {
+      "gender": "aadhaar",
+      "address": "aadhaar",
+      "aadhaar_number": "aadhaar"
+    }
+  },
+  "phase4_complete": {
+    "fields_filled": 7,
+    "fields_total": 11,
+    "confidence": 0.6363636363636364,
+    "remaining_empty": []
+  },
+  "phase5_verification": {
+    "matching_status": "verified",
+    "tampered_status": "needs_review"
+  },
+  "tests": {
+    "passed": 15,
+    "failed": 0
+  }
+}

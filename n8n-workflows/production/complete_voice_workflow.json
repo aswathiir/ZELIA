@@ -1,0 +1,329 @@
+{
+  "name": "ZELIA Voice Query Processing (Complete)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entry",
+      "name": "Voice Query Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "zelia-voice-query"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract and validate voice query\nconst body = $input.item.json.body;\n\nconst transcript = body.transcript || body.query || '';\nconst language = body.language || 'ta-IN';\nconst callId = body.call_id || body.callId;\nconst entities = body.extracted_entities || body.entities || {};\n\nif (!transcript) {\n  throw new Error('Missing transcript in voice query');\n}\n\n// Determine query type\nconst queryType = body.query_type || determineQueryType(transcript, entities);\n\nfunction determineQueryType(text, ents) {\n  const lower = text.toLowerCase();\n  \n  if (lower.includes('scheme') || lower.includes('pension') || lower.includes('योजना') || lower.includes('திட்டம்')) {\n    return 'scheme_search';\n  }\n  \n  if (Object.keys(ents).length >= 3) {\n    return 'profile_creation';\n  }\n  \n  return 'general_query';\n}\n\nreturn {\n  json: {\n    transcript,\n    language,\n    call_id: callId,\n    entities,\n    query_type: queryType,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "validate-voice-input",
+      "name": "Validate Voice Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "switch-condition-1",
+              "leftValue": "={{ $json.query_type }}",
+              "rightValue": "scheme_search",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "query-type-router",
+      "name": "Query Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://translation-service:8009/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.transcript }}"
+            },
+            {
+              "name": "source_lang",
+              "value": "={{ $json.language }}"
+            },
+            {
+              "name": "target_lang",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "translate-to-english",
+      "name": "Translate to English",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://web-scraper:8008/search",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.translated_text || $json.transcript }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search-schemes",
+      "name": "Search Schemes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://retrieval-service:8007/retrieve",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.translated_text || $json.transcript }}"
+            },
+            {
+              "name": "top_k",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "rag-search",
+      "name": "RAG Semantic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Merge results from web scraper and RAG\nconst webResults = $('search-schemes').item.json.schemes || [];\nlet ragResults = [];\n\ntry {\n  ragResults = $('rag-search').item.json.schemes || [];\n} catch (e) {\n  // RAG failed, use only web results\n}\n\n// Deduplicate by scheme_id\nconst seen = new Set();\nconst merged = [];\n\nfor (const scheme of [...webResults, ...ragResults]) {\n  if (!seen.has(scheme.scheme_id || scheme.id)) {\n    seen.add(scheme.scheme_id || scheme.id);\n    merged.push(scheme);\n  }\n}\n\nreturn {\n  json: {\n    schemes: merged.slice(0, 5),\n    source_count: {\n      web: webResults.length,\n      rag: ragResults.length,\n      merged: merged.length\n    }\n  }\n};"
+      },
+      "id": "merge-results",
+      "name": "Merge Search Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rules-engine:8005/check-eligibility",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "profile",
+              "value": "={{ $('validate-voice-input').item.json.entities }}"
+            },
+            {
+              "name": "schemes",
+              "value": "={{ $json.schemes }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-eligibility",
+      "name": "Check Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format response for voice output\nconst originalLang = $('validate-voice-input').item.json.language;\nconst schemes = $json.eligible_schemes || $json.schemes || [];\n\nlet responseText = '';\n\nif (schemes.length === 0) {\n  responseText = 'I could not find any matching schemes for your query. Please try rephrasing or contact a Community Health Worker for assistance.';\n} else {\n  // Create summary\n  const schemeNames = schemes.slice(0, 3).map(s => s.title || s.name).join(', ');\n  responseText = `I found ${schemes.length} schemes that may help you. The top matches are: ${schemeNames}.`;\n  \n  // Add eligibility info if available\n  if ($json.eligible_count) {\n    responseText += ` You appear to be eligible for ${$json.eligible_count} of these schemes based on your profile.`;\n  }\n  \n  responseText += ' Would you like more details about any specific scheme?';\n}\n\nreturn {\n  json: {\n    response_text: responseText,\n    schemes: schemes,\n    language: originalLang,\n    requires_translation: originalLang !== 'en',\n    call_id: $('validate-voice-input').item.json.call_id\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "Format Voice Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://translation-service:8009/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.response_text }}"
+            },
+            {
+              "name": "source_lang",
+              "value": "en"
+            },
+            {
+              "name": "target_lang",
+              "value": "={{ $json.language }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "translate-response",
+      "name": "Translate Response Back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  language: $json.language,\n  response: $json.translated_text || $('format-response').item.json.response_text,\n  schemes: $('format-response').item.json.schemes,\n  call_id: $('format-response').item.json.call_id,\n  timestamp: new Date().toISOString()\n}) }}"
+      },
+      "id": "send-response",
+      "name": "Send Voice Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle profile creation queries\nconst entities = $('validate-voice-input').item.json.entities;\nconst language = $('validate-voice-input').item.json.language;\n\n// Check if we have enough data to create profile\nconst requiredFields = ['age', 'marital_status', 'monthly_income'];\nconst hasRequiredData = requiredFields.every(field => entities[field]);\n\nif (!hasRequiredData) {\n  return {\n    json: {\n      status: 'incomplete',\n      message: 'I need more information to help you. Can you tell me your age, marital status, and monthly household income?',\n      missing_fields: requiredFields.filter(f => !entities[f]),\n      language\n    }\n  };\n}\n\n// Create household profile\nconst profile = {\n  household_id_hash: `voice_${Date.now()}`,\n  profile_json: entities,\n  location_district: entities.location || 'Unknown',\n  consent_ledger_json: {\n    voice_consent: true,\n    timestamp: new Date().toISOString()\n  },\n  sync_status: 'pending'\n};\n\nreturn {\n  json: {\n    status: 'complete',\n    profile,\n    message: 'Thank you for providing your information. I will now check which schemes you are eligible for.',\n    language\n  }\n};"
+      },
+      "id": "create-profile",
+      "name": "Create Household Profile",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO households (household_id_hash, profile_json, location_district, consent_ledger_json, sync_status, last_updated_ts)\nVALUES (\n  '{{$json.profile.household_id_hash}}',\n  '{{JSON.stringify($json.profile.profile_json)}}'::jsonb,\n  '{{$json.profile.location_district}}',\n  '{{JSON.stringify($json.profile.consent_ledger_json)}}'::jsonb,\n  '{{$json.profile.sync_status}}',\n  NOW()\n)\nON CONFLICT (household_id_hash) DO UPDATE\nSET profile_json = EXCLUDED.profile_json,\n    last_updated_ts = NOW()\nRETURNING household_id_hash;",
+        "additionalFields": {}
+      },
+      "id": "save-profile-db",
+      "name": "Save Profile to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1120, 500],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "ZELIA PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO audit_ledger (event_type, entity_type, entity_id, actor_id, payload, created_at)\nVALUES (\n  'voice_query_processed',\n  'household',\n  '{{$('validate-voice-input').item.json.call_id}}',\n  'ultravox_agent',\n  '{{JSON.stringify({\n    transcript: $('validate-voice-input').item.json.transcript,\n    language: $('validate-voice-input').item.json.language,\n    query_type: $('validate-voice-input').item.json.query_type,\n    schemes_found: ($('merge-results').item.json.schemes || []).length\n  })}}'::jsonb,\n  NOW()\n);",
+        "additionalFields": {}
+      },
+      "id": "audit-log",
+      "name": "Audit Log Entry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2000, 500],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "ZELIA PostgreSQL"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Voice Query Webhook": {
+      "main": [[{"node": "Validate Voice Input", "type": "main", "index": 0}]]
+    },
+    "Validate Voice Input": {
+      "main": [[{"node": "Query Type Router", "type": "main", "index": 0}]]
+    },
+    "Query Type Router": {
+      "main": [
+        [{"node": "Translate to English", "type": "main", "index": 0}],
+        [{"node": "Create Household Profile", "type": "main", "index": 0}]
+      ]
+    },
+    "Translate to English": {
+      "main": [[
+        {"node": "Search Schemes", "type": "main", "index": 0},
+        {"node": "RAG Semantic Search", "type": "main", "index": 0}
+      ]]
+    },
+    "Search Schemes": {
+      "main": [[{"node": "Merge Search Results", "type": "main", "index": 0}]]
+    },
+    "RAG Semantic Search": {
+      "main": [[{"node": "Merge Search Results", "type": "main", "index": 0}]]
+    },
+    "Merge Search Results": {
+      "main": [[{"node": "Check Eligibility", "type": "main", "index": 0}]]
+    },
+    "Check Eligibility": {
+      "main": [[{"node": "Format Voice Response", "type": "main", "index": 0}]]
+    },
+    "Format Voice Response": {
+      "main": [[
+        {"node": "Translate Response Back", "type": "main", "index": 0},
+        {"node": "Audit Log Entry", "type": "main", "index": 0}
+      ]]
+    },
+    "Translate Response Back": {
+      "main": [[{"node": "Send Voice Response", "type": "main", "index": 0}]]
+    },
+    "Create Household Profile": {
+      "main": [[{"node": "Save Profile to DB", "type": "main", "index": 0}]]
+    },
+    "Save Profile to DB": {
+      "main": [[{"node": "Search Schemes", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-13T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZELIA CHW Console</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏛️ ZELIA CHW Console</h1>
+            <p>Zero-Literacy Eligibility & Livelihood Intelligence Assistant</p>
+        </header>
+
+        <main>
+            <section class="voice-section">
+                <h2>Voice Interview</h2>
+                <button id="startVoice" class="btn-primary">🎤 Start Voice Call</button>
+                <button id="endVoice" class="btn-secondary" disabled>📞 End Call</button>
+                <div id="voiceStatus" class="status-box">Ready to start</div>
+                <div id="transcript" class="transcript-box"></div>
+            </section>
+
+            <section class="results-section">
+                <h2>Eligible Schemes</h2>
+                <div id="schemes" class="schemes-list"></div>
+            </section>
+
+            <section class="action-section">
+                <h2>Action Items</h2>
+                <div id="actions" class="actions-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="voice-input.js"></script>
+</body>
+</html>

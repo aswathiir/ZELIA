@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZELIA | Eligibility Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Professional Color Palette */
+            --primary: #2563EB;
+            /* Trustworthy Blue */
+            --primary-dark: #1E40AF;
+            --secondary: #10B981;
+            /* Success Green */
+            --accent: #F59E0B;
+            /* Attention Orange */
+            --danger: #EF4444;
+            /* Error Red */
+
+            --bg-body: #F3F4F6;
+            --bg-card: #FFFFFF;
+            --text-heading: #111827;
+            --text-body: #374151;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-body);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            max-height: 800px;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        /* HEADER */
+        header {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            font-size: 1.5rem;
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            letter-spacing: -0.02em;
+        }
+
+        .brand-text p {
+            margin: 0;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--secondary);
+            animation: blink 2s infinite;
+        }
+
+        /* MAIN CONTENT */
+        main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* START SCREEN */
+        .welcome-hero {
+            text-align: center;
+        }
+
+        .hero-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .hero-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 8px;
+        }
+
+        .hero-desc {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        /* INTERVIEW SCREEN */
+        .interview-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        .pictogram-box {
+            width: 80px;
+            height: 80px;
+            background: #EFF6FF;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 24px;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-heading);
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* DOCUMENT UPLOAD */
+        .upload-zone {
+            width: 100%;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #FAFAFA;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: #EFF6FF;
+        }
+
+        .upload-icon {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .upload-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        /* INPUTS */
+        .input-group {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-align: center;
+            color: var(--text-heading);
+            font-weight: 500;
+        }
+
+        .text-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* ACTION BUTTONS */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .btn {
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-danger {
+            background: white;
+            color: var(--danger);
+            border: 2px solid #FEE2E2;
+        }
+
+        .btn-danger:hover {
+            background: #FEF2F2;
+            border-color: var(--danger);
+        }
+
+        .btn-danger.listening {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+
+        .btn-subtle {
+            width: 100%;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 16px;
+            padding: 8px;
+        }
+
+        .btn-subtle:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* RESULTS */
+        .results-list {
+            width: 100%;
+        }
+
+        .scheme-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.2s;
+        }
+
+        .scheme-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .scheme-card.eligible {
+            border-left: 4px solid var(--secondary);
+        }
+
+        .scheme-card.ineligible {
+            border-left: 4px solid var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .scheme-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .scheme-title {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-heading);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-badge.success {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .status-badge.fail {
+            background: #F3F4F6;
+            color: #4B5563;
+        }
+
+        /* FOOTER Status */
+        footer {
+            padding: 12px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            background: #FAFAFA;
+        }
+
+        .status-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <header>
+            <div class="brand">
+                <span class="brand-logo">🏛️</span>
+                <div class="brand-text">
+                    <h1>ZELIA</h1>
+                    <p>Government Entitlements</p>
+                </div>
+            </div>
+            <div class="indicator" title="System Online"></div>
+        </header>
+
+        <main>
+            <!-- Start Screen -->
+            <div id="start-screen" class="welcome-hero">
+                <span class="hero-icon">🇮🇳</span>
+                <h2 class="hero-title">Namaste.</h2>
+                <p class="hero-desc">I can help you check eligibility for government schemes using just your voice.</p>
+                <div style="width: 100%;">
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center;"
+                        onclick="startInterview()">
+                        Start Assessment
+                    </button>
+                    <p style="margin-top: 16px; font-size: 0.8rem; color: var(--text-muted);">Available Offline</p>
+                </div>
+            </div>
+
+            <!-- Interview Screen -->
+            <div id="interview-screen" class="interview-wrapper" style="display: none;">
+                <div class="pictogram-box">
+                    <span id="pictogram">👋</span>
+                </div>
+
+                <h3 id="question-text" class="question-text">Loading question...</h3>
+
+                <!-- Doc Upload Stub -->
+                <div id="doc-upload-container" style="display:none; width:100%;">
+                    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+                        <span class="upload-icon">📷</span>
+                        <span class="upload-label">Scan Document</span>
+                    </div>
+                    <input type="file" id="file-input" style="display:none" onchange="handleFileUpload(this)">
+                    <p id="upload-status"
+                        style="text-align:center; font-size:0.75rem; color:var(--success); margin-top:-10px; margin-bottom: 20px;">
+                    </p>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="answer-input" class="text-input" placeholder="Type or Speak answer..."
+                        autocomplete="off">
+                </div>
+
+                <div class="action-grid">
+                    <button class="btn btn-danger btn-mic" onclick="toggleMic()">
+                        <span class="icon">🎙️</span> Speak
+                    </button>
+                    <button class="btn btn-primary btn-next" onclick="submitAnswer()">
+                        Next <span class="icon">→</span>
+                    </button>
+                </div>
+
+                <button class="btn btn-subtle" onclick="simulateDemo()">
+                    🤖 Auto-Fill (Demo Mode)
+                </button>
+            </div>
+
+            <!-- Results Screen -->
+            <div id="results-screen" class="interview-wrapper" style="display: none; width: 100%;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <span style="font-size: 3rem;">📋</span>
+                    <h3 style="margin: 12px 0 0 0; color: var(--text-heading);">Eligibility Report</h3>
+                </div>
+
+                <div id="results-list" class="results-list"></div>
+
+                <button class="btn btn-primary" style="width: 100%; margin-top: 24px; justify-content: center;"
+                    onclick="location.reload()">
+                    Check Another Family
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <div id="status-msg" class="status-text">Ready to assist</div>
+        </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>

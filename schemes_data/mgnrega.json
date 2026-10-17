@@ -1,0 +1,9 @@
+{
+  "name": "Mahatma Gandhi National Rural Employment Guarantee Act",
+  "description": "100 days of wage employment.",
+  "criteria": {
+    "min_age": 18,
+    "residence": "Rural"
+  },
+  "benefits": "Guaranteed wage employment."
+}

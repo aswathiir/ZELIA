@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "templates_dir": "dataset/govt/templates",
+  "include_bundle": false,
+  "template_count": 12,
+  "templates": [
+    {
+      "template_key": "Application_for_assiatance.pdf",
+      "path": "dataset/govt/templates/Application_for_assiatance.pdf",
+      "size_bytes": 56296,
+      "sha256": "2c84c41e1e86aa344a87b337695fd304c8ef95400bca127038ba4a2d8ca40b64",
+      "page_count": 2,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "childofjail.pdf",
+      "path": "dataset/govt/templates/childofjail.pdf",
+      "size_bytes": 64802,
+      "sha256": "11f6daf495f4780ec51dd3c109a48facc2fa8c174284bcb5acef5762aabd507e",
+      "page_count": 3,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "disabledgovt.pdf",
+      "path": "dataset/govt/templates/disabledgovt.pdf",
+      "size_bytes": 128501,
+      "sha256": "779c50eb90801cf0c56c6399db8aaec297a1d03f13260872a626f3e9f6e457db",
+      "page_count": 2,
+      "is_scanned": true,
+      "deferred": false
+    },
+    {
+      "template_key": "intimationform.pdf",
+      "path": "dataset/govt/templates/intimationform.pdf",
+      "size_bytes": 116619,
+      "sha256": "aaf0caa6163b8212702a2aefcf733f24f07c384ef5d4cb8d5d002ba19915bd88",
+      "page_count": 2,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "jobskilltraining.pdf",
+      "path": "dataset/govt/templates/jobskilltraining.pdf",
+      "size_bytes": 109782,
+      "sha256": "7cbc1816bf6d6dadb0dc330fb995ade219024aa702c6b49158873903f1563dcd",
+      "page_count": 4,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "mathrjyothi.pdf",
+      "path": "dataset/govt/templates/mathrjyothi.pdf",
+      "size_bytes": 378708,
+      "sha256": "baa43fff9727884fdffc3a7aa652fc3d7bbb363de1d0b2ad34284b6642835753",
+      "page_count": 2,
+      "is_scanned": true,
+      "deferred": false
+    },
+    {
+      "template_key": "niramaya.pdf",
+      "path": "dataset/govt/templates/niramaya.pdf",
+      "size_bytes": 472776,
+      "sha256": "a61369760bf0b8209ff7639cf17c8ecf6fea0e66336f97f907f969d582ee635d",
+      "page_count": 1,
+      "is_scanned": true,
+      "deferred": false
+    },
+    {
+      "template_key": "pension1.pdf",
+      "path": "dataset/govt/templates/pension1.pdf",
+      "size_bytes": 117882,
+      "sha256": "d1ba702d7310388f9677d573160840403b863ac06175a10c565c1d9c85cea862",
+      "page_count": 2,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "pratibhaschem.pdf",
+      "path": "dataset/govt/templates/pratibhaschem.pdf",
+      "size_bytes": 151377,
+      "sha256": "d298c261753a8661701005c4090cce73474c6a0709cd0bd1d13f824b87ece09f",
+      "page_count": 9,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "stateaward.pdf",
+      "path": "dataset/govt/templates/stateaward.pdf",
+      "size_bytes": 4081801,
+      "sha256": "9de47dedec57279bb7ad88b0c37ed34d393e772546c691e4b3d490297e1c7237",
+      "page_count": 6,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "swasraya.pdf",
+      "path": "dataset/govt/templates/swasraya.pdf",
+      "size_bytes": 209703,
+      "sha256": "29b74298b4070be2f87298f07bb20678b73d1f3b4edd3f75bd341199253932c5",
+      "page_count": 2,
+      "is_scanned": false,
+      "deferred": false
+    },
+    {
+      "template_key": "tamiltraining.pdf",
+      "path": "dataset/govt/templates/tamiltraining.pdf",
+      "size_bytes": 54088,
+      "sha256": "0cc81aca43661b601f5cea9b2f2bd89498d59edecca0fcb89cb5aefe76b6981c",
+      "page_count": 2,
+      "is_scanned": false,
+      "deferred": false
+    }
+  ],
+  "deferred": [
+    {
+      "template_key": "formsandregister.pdf",
+      "reason": "Deferred large bundle template; not used in strict default scope"
+    }
+  ]
+}

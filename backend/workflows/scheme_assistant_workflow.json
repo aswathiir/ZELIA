@@ -1,0 +1,192 @@
+{
+    "name": "ZELIA Scheme Assistant (RAG + Rules)",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "assist",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://retrieval-service:8007/search",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{$node[\"Webhook\"].json[\"query\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Find Scheme Info",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                660,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-3.5-turbo",
+                "prompt": "=Context:\n{{$json[\"context\"]}}\n\nUser Question:\n{{$node[\"Webhook\"].json[\"query\"]}}\n\nTask: Identify if the user is asking about eligibility for a specific scheme. If yes, extract the scheme name and potential parameters.\n\nOutput JSON format:\n{\n  \"is_eligibility_check\": boolean,\n  \"scheme_id\": string (or null),\n  \"extracted_data\": object,\n  \"answer\": string (based on context)\n}",
+                "options": {}
+            },
+            "name": "Analyze Intent",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                860,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{JSON.parse($json[\"content\"]).is_eligibility_check}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Is Eligibility Check?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1060,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://rules-engine:8005/evaluate",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "scheme_id",
+                            "value": "={{JSON.parse($node[\"Analyze Intent\"].json[\"content\"]).scheme_id}}"
+                        },
+                        {
+                            "name": "applicant_data",
+                            "value": "={{JSON.parse($node[\"Analyze Intent\"].json[\"content\"]).extracted_data}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Check Rules",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1260,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-3.5-turbo",
+                "prompt": "=User asked about eligibility for {{JSON.parse($node[\"Analyze Intent\"].json[\"content\"]).scheme_id}}.\n\nBased on the rules engine result:\n{{$json}}\n\nProvide a helpful response to the user explaining if they are eligible or what data is missing.",
+                "options": {}
+            },
+            "name": "Format Eligibility Response",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                1460,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "content": "={{JSON.parse($node[\"Analyze Intent\"].json[\"content\"]).answer}}"
+            },
+            "name": "Standard Answer",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                1260,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Find Scheme Info",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Find Scheme Info": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Intent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Is Eligibility Check?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Eligibility Check?": {
+            "main": [
+                [
+                    {
+                        "node": "Check Rules",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Standard Answer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Rules": {
+            "main": [
+                [
+                    {
+                        "node": "Format Eligibility Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

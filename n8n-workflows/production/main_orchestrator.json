@@ -1,0 +1,242 @@
+{
+    "name": "ZELIA Main Orchestrator - Production FIXED",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "zelia-assist",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "webhook-1",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const q = $input.item.json.query || '';\nlet lang = 'en-IN';\nif (/[\\u0900-\\u097F]/.test(q)) lang = 'hi-IN';\nelse if (/[\\u0B80-\\u0BFF]/.test(q)) lang = 'ta-IN';\nelse if (/[\\u0D00-\\u0D7F]/.test(q)) lang = 'ml-IN';\n\nreturn {\n  query: q,\n  detected_language: lang,\n  user_data: $input.item.json.user_data || {}\n};"
+            },
+            "id": "detect-lang",
+            "name": "Parse & Detect",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://translation-service:8009/translate",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={ \"text\": \"{{$json.query}}\", \"source_lang\": \"{{$json.detected_language}}\", \"target_lang\": \"en-IN\" }",
+                "options": {}
+            },
+            "id": "translate-query",
+            "name": "Translate Query",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                680,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://retrieval-service:8007/search/hybrid",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={ \"query\": \"{{$json.translated_text}}\", \"k\": 5 }",
+                "options": {}
+            },
+            "id": "rag-search",
+            "name": "RAG Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                900,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://web-scraper:8008/scrape/schemes",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={ \"query\": \"{{$json.translated_text}}\", \"max_results\": 5 }",
+                "options": {}
+            },
+            "id": "web-search",
+            "name": "Web Scraper",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                900,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "append"
+            },
+            "id": "merge-branches",
+            "name": "Merge Branches",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst allSchemes = [];\n\nitems.forEach(item => {\n  const res = item.json.results || [];\n  // Handle both RAG (vector) and Web structures if different, assuming 'results' array\n  if (Array.isArray(res)) {\n     res.forEach(r => allSchemes.push({ \n       title: r.title || r.metadata?.title,\n       description: r.description || r.content,\n       score: r.score || r.relevance_score || 0\n     }));\n  }\n});\n\n// Sort and slice\nallSchemes.sort((a,b) => b.score - a.score);\nconst topSchemes = allSchemes.slice(0, 3);\n\nreturn { \n  schemes: topSchemes,\n  count: topSchemes.length\n};"
+            },
+            "id": "process-results",
+            "name": "Process Results",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://translation-service:8009/translate/batch",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={ \"texts\": {{$json.schemes.map(s => s.title)}}, \"source_lang\": \"en-IN\", \"target_lang\": \"{{$(\\\"Parse & Detect\\\").first().json.detected_language}}\" }",
+                "options": {}
+            },
+            "id": "translate-titles",
+            "name": "Translate Titles",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1560,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const schemes = $node['Process Results'].json.schemes;\nconst translations = $input.item.json.results || [];\nconst lang = $('Parse & Detect').first().json.detected_language;\nconst query = $('Parse & Detect').first().json.query;\nconst userData = $('Parse & Detect').first().json.user_data;\n\n// Attach translations\nschemes.forEach((s, i) => {\n  if(translations[i]) s.title_translated = translations[i].translated;\n});\n\n// Simulate submission if schemes found\nlet submission = null;\nif (schemes.length > 0) {\n  submission = { \n    status: 'processed', \n    submission_id: 'sub_' + Date.now(),\n    confidence: 0.95 \n  };\n}\n\nreturn {\n  success: true,\n  query: query,\n  detected_language: lang,\n  schemes_found: schemes,\n  total_schemes: schemes.length,\n  submission: submission,\n  user_data: userData\n};"
+            },
+            "id": "format-response",
+            "name": "Format Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1780,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Parse & Detect",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse & Detect": {
+            "main": [
+                [
+                    {
+                        "node": "Translate Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Translate Query": {
+            "main": [
+                [
+                    {
+                        "node": "RAG Search",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Web Scraper",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "RAG Search": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Branches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Web Scraper": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Branches",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Branches": {
+            "main": [
+                [
+                    {
+                        "node": "Process Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Results": {
+            "main": [
+                [
+                    {
+                        "node": "Translate Titles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Translate Titles": {
+            "main": [
+                [
+                    {
+                        "node": "Format Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

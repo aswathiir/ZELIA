@@ -1,0 +1,518 @@
+{
+  "version": "1.0",
+  "priority_fields": [
+    "name",
+    "age",
+    "address",
+    "gender"
+  ],
+  "templates": {
+    "Application_for_assiatance.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "childofjail.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "disabledgovt.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "intimationform.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "jobskilltraining.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "mathrjyothi.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "niramaya.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "pension1.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "pmjay_enrollment.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "pratibhaschem.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "stateaward.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "swasraya.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    },
+    "tamiltraining.pdf": {
+      "strategy": {
+        "keep_original_page_1": true,
+        "append_filled_data_page": true,
+        "overlay_priority_fields_only": true
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 140,
+          "y": 700,
+          "fontSize": 11,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 140,
+          "y": 675,
+          "fontSize": 11,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 140,
+          "y": 650,
+          "fontSize": 11,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 140,
+          "y": 625,
+          "fontSize": 11,
+          "required": true
+        }
+      },
+      "status": "stub",
+      "notes": "Adjust coordinates per template after visual verification"
+    }
+  }
+}

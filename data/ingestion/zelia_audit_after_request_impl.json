@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "workflow": "zeliaintegration_v28b_fresh.json",
+  "schema_files": [
+    "schema_v28_upgrade.sql"
+  ],
+  "templates_dir": "dataset/govt/templates",
+  "placeholders_dir": "data/forms",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 1,
+    "total": 1
+  },
+  "strict_ready": true,
+  "findings": [
+    {
+      "id": "F001",
+      "rule_id": "BUNDLE_TEMPLATE_DEFERRED",
+      "severity": "info",
+      "message": "formsandregister.pdf detected and treated as deferred bundle by default strict scope.",
+      "remediation": "Keep deferred unless explicitly opting in with dedicated mapping and performance validation.",
+      "evidence": {},
+      "node_refs": [],
+      "file_refs": [
+        "dataset/govt/templates/formsandregister.pdf"
+      ]
+    }
+  ]
+}

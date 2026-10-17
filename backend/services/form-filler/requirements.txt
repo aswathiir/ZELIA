@@ -1,0 +1,6 @@
+flask
+flask-cors
+PyPDF2
+reportlab
+boto3
+gunicorn==21.2.0

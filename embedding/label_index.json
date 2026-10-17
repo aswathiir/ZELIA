@@ -1,0 +1,54 @@
+{
+  "0": {
+    "field_id": "head_name",
+    "alias": "Name of head"
+  },
+  "1": {
+    "field_id": "head_name",
+    "alias": "head_of_household_name"
+  },
+  "2": {
+    "field_id": "head_name",
+    "alias": "தலைமை பெயர்"
+  },
+  "3": {
+    "field_id": "head_name",
+    "alias": "தலைவர் பெயர்"
+  },
+  "4": {
+    "field_id": "age",
+    "alias": "Age"
+  },
+  "5": {
+    "field_id": "age",
+    "alias": "Date of birth"
+  },
+  "6": {
+    "field_id": "age",
+    "alias": "வயது"
+  },
+  "7": {
+    "field_id": "age",
+    "alias": "பிறந்த தேதி"
+  },
+  "8": {
+    "field_id": "ration_card_no",
+    "alias": "Ration Card Number"
+  },
+  "9": {
+    "field_id": "ration_card_no",
+    "alias": "Family Card No"
+  },
+  "10": {
+    "field_id": "ration_card_no",
+    "alias": "குடும்ப அட்டை எண்"
+  },
+  "11": {
+    "field_id": "address",
+    "alias": "Address"
+  },
+  "12": {
+    "field_id": "address",
+    "alias": "முகவரி"
+  }
+}

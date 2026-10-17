@@ -1,0 +1,251 @@
+{
+  "name": "ZELIA Voice Assistant - Complete Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-query",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-voice-entry",
+      "name": "Voice Query Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "zelia-voice-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract voice query payload\nconst body = $input.item.json.body;\n\nreturn {\n  json: {\n    query_text: body.query_text || body.transcript || '',\n    language: body.language || 'ta-IN',\n    user_id: body.user_id || 'anonymous',\n    query_type: body.query_type || 'search',\n    context: body.context || {},\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-voice-input",
+      "name": "Parse Voice Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://translation-service:8009/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.query_text }}"
+            },
+            {
+              "name": "source_language",
+              "value": "={{ $json.language }}"
+            },
+            {
+              "name": "target_language",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "translate-to-english",
+      "name": "Translate to English",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://web-scraper:8008/search",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.translated_text }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search-schemes",
+      "name": "Search Schemes (MyScheme API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://retrieval-service:8007/search",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.translated_text }}"
+            },
+            {
+              "name": "top_k",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rag-search",
+      "name": "RAG Search (Vector DB)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Merge results from Web Scraper and RAG\nconst webResults = $('search-schemes').item.json.results || [];\nconst ragResults = $('rag-search').item.json.results || [];\n\n// Deduplicate and combine\nconst allResults = [...webResults];\nconst seenIds = new Set(webResults.map(r => r.scheme_id));\n\nfor (const ragResult of ragResults) {\n  if (!seenIds.has(ragResult.scheme_id)) {\n    allResults.push(ragResult);\n  }\n}\n\n// Sort by relevance score\nallResults.sort((a, b) => (b.score || 0) - (a.score || 0));\n\nreturn {\n  json: {\n    results: allResults.slice(0, 5),\n    total_found: allResults.length,\n    sources: {\n      web_scraper: webResults.length,\n      rag: ragResults.length\n    }\n  }\n};"
+      },
+      "id": "merge-results",
+      "name": "Merge & Rank Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 375]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format results for voice-friendly response\nconst results = $json.results || [];\nconst originalLanguage = $('parse-voice-input').item.json.language;\n\nif (results.length === 0) {\n  return {\n    json: {\n      text_to_translate: \"I couldn't find any schemes matching your query. Could you please rephrase or provide more details?\",\n      language: originalLanguage,\n      results: []\n    }\n  };\n}\n\n// Create concise voice-friendly summary\nlet summary = `I found ${results.length} relevant schemes for you:\\n\\n`;\n\nresults.forEach((scheme, index) => {\n  summary += `${index + 1}. ${scheme.title || scheme.name}\\n`;\n  if (scheme.description) {\n    const shortDesc = scheme.description.substring(0, 100) + (scheme.description.length > 100 ? '...' : '');\n    summary += `   ${shortDesc}\\n`;\n  }\n  if (scheme.eligibility) {\n    summary += `   Eligibility: ${scheme.eligibility}\\n`;\n  }\n  summary += `\\n`;\n});\n\nsummary += \"Would you like to know more about any of these schemes?\";\n\nreturn {\n  json: {\n    text_to_translate: summary,\n    language: originalLanguage,\n    results: results,\n    query_type: 'search_results'\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "Format Voice Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 375]
+    },
+    {
+      "parameters": {
+        "url": "http://translation-service:8009/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.text_to_translate }}"
+            },
+            {
+              "name": "source_language",
+              "value": "en"
+            },
+            {
+              "name": "target_language",
+              "value": "={{ $json.language }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "translate-response",
+      "name": "Translate Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 375]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  \"success\": true,\n  \"response_text\": $json.translated_text,\n  \"original_text\": $('format-response').item.json.text_to_translate,\n  \"language\": $('format-response').item.json.language,\n  \"results\": $('format-response').item.json.results,\n  \"timestamp\": new Date().toISOString()\n}}"
+      },
+      "id": "respond-to-voice",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 375]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-session",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-create-session",
+      "name": "Create Voice Session Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 600],
+      "webhookId": "zelia-create-voice-session"
+    },
+    {
+      "parameters": {
+        "url": "http://ultravox-proxy:8010/create-session",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "language",
+              "value": "={{ $json.body.language || 'ta-IN' }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ $json.body.context || {} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-ultravox-session",
+      "name": "Create Ultravox Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  \"success\": true,\n  \"call_id\": $json.call_id,\n  \"join_url\": $json.join_url,\n  \"status\": $json.status,\n  \"webhook_url\": \"http://localhost:5678/webhook/voice-query\"\n}}"
+      },
+      "id": "respond-session",
+      "name": "Return Session Info",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 600]
+    }
+  ],
+  "connections": {
+    "Voice Query Webhook": {
+      "main": [[{"node": "Parse Voice Input", "type": "main", "index": 0}]]
+    },
+    "Parse Voice Input": {
+      "main": [[{"node": "Translate to English", "type": "main", "index": 0}]]
+    },
+    "Translate to English": {
+      "main": [[
+        {"node": "Search Schemes (MyScheme API)", "type": "main", "index": 0},
+        {"node": "RAG Search (Vector DB)", "type": "main", "index": 0}
+      ]]
+    },
+    "Search Schemes (MyScheme API)": {
+      "main": [[{"node": "Merge & Rank Results", "type": "main", "index": 0}]]
+    },
+    "RAG Search (Vector DB)": {
+      "main": [[{"node": "Merge & Rank Results", "type": "main", "index": 0}]]
+    },
+    "Merge & Rank Results": {
+      "main": [[{"node": "Format Voice Response", "type": "main", "index": 0}]]
+    },
+    "Format Voice Response": {
+      "main": [[{"node": "Translate Response", "type": "main", "index": 0}]]
+    },
+    "Translate Response": {
+      "main": [[{"node": "Send Response", "type": "main", "index": 0}]]
+    },
+    "Create Voice Session Webhook": {
+      "main": [[{"node": "Create Ultravox Session", "type": "main", "index": 0}]]
+    },
+    "Create Ultravox Session": {
+      "main": [[{"node": "Return Session Info", "type": "main", "index": 0}]]
+    }
+  }
+}

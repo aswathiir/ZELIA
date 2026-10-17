@@ -1,0 +1,101 @@
+{
+  "schemes": [
+    {
+      "name": "Farmer Subsidy Scheme",
+      "description": "Financial assistance for small and marginal farmers",
+      "ministry": "Department of Agriculture & Farmers Welfare",
+      "eligibility_rules": [
+        {
+          "field": "occupation",
+          "operator": "==",
+          "value": "farmer",
+          "description": "Applicant must be a farmer"
+        },
+        {
+          "field": "land_size",
+          "operator": "<",
+          "value": 5,
+          "description": "Land holding must be less than 5 acres"
+        },
+        {
+          "field": "income",
+          "operator": "<=",
+          "value": 500000,
+          "description": "Annual family income must be <= 5 lakhs"
+        },
+        {
+          "field": "age",
+          "operator": ">=",
+          "value": 18,
+          "description": "Applicant must be 18 years or older"
+        }
+      ],
+      "pseudocode": "IF (occupation == 'farmer' AND land_size < 5 AND income <= 500000 AND age >= 18) THEN eligible",
+      "form_fields": [
+        "name",
+        "age",
+        "land_size",
+        "income",
+        "state",
+        "district",
+        "crop_type"
+      ]
+    },
+    {
+      "name": "PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)",
+      "description": "Direct income support to farmers",
+      "ministry": "Department of Agriculture & Farmers Welfare",
+      "eligibility_rules": [
+        {
+          "field": "occupation",
+          "operator": "==",
+          "value": "farmer",
+          "description": "Must be a farmer"
+        },
+        {
+          "field": "land_size",
+          "operator": "<=",
+          "value": 2,
+          "description": "Land holding up to 2 hectares"
+        }
+      ],
+      "pseudocode": "IF (occupation == 'farmer' AND land_size <= 2 hectares) THEN eligible for 6000/year",
+      "form_fields": [
+        "name",
+        "age",
+        "land_size",
+        "aadhar",
+        "bank_account",
+        "state"
+      ]
+    },
+    {
+      "name": "NREGA (Mahatma Gandhi National Rural Employment Guarantee Act)",
+      "description": "Guaranteed wage employment in rural areas",
+      "ministry": "Ministry of Rural Development",
+      "eligibility_rules": [
+        {
+          "field": "location",
+          "operator": "==",
+          "value": "rural",
+          "description": "Must be in rural area"
+        },
+        {
+          "field": "age",
+          "operator": ">=",
+          "value": 18,
+          "description": "Must be 18 or above"
+        }
+      ],
+      "pseudocode": "IF (location == 'rural' AND age >= 18) THEN eligible for 100 days work/year",
+      "form_fields": [
+        "name",
+        "age",
+        "village",
+        "state",
+        "occupation",
+        "bank_account"
+      ]
+    }
+  ]
+}

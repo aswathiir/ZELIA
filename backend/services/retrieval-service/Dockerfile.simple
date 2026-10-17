@@ -1,0 +1,14 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy simple requirements
+COPY requirements_simple.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy simple service
+COPY retrieval_service_simple.py retrieval_service.py
+
+EXPOSE 8007
+
+CMD ["python", "retrieval_service.py"]

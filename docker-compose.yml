@@ -1,0 +1,476 @@
+version: '3.9'
+
+services:
+  # REAL ULTRAVOX HANDLER (Replaces previous stub)
+  ultravox-handler:
+    build:
+      context: ./backend/services/ultravox-real-handler
+      dockerfile: Dockerfile
+    container_name: zelia-ultravox-handler
+    ports:
+      - "8013:8000" # Mapped to 8013 as requested (Note: Scheme Service moved/disabled on this port)
+    environment:
+      ULTRAVOX_API_KEY: ${ULTRAVOX_API_KEY}
+      ULTRAVOX_AGENT_ID: ${ULTRAVOX_AGENT_ID}
+      ULTRAVOX_STRICT: ${ULTRAVOX_STRICT:-true}
+      DATABASE_URL: postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_SECURE: "false"
+      MINIO_BUCKETS: "verified-docs,filled-forms"
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      SUBMISSION_SERVICE_URL: http://submission-service:8004
+      FORM_FILLER_URL: http://form-filler-service:8013
+    depends_on:
+      - postgres
+      - n8n
+    volumes:
+      - ./backend/services/ultravox-real-handler:/app
+    networks:
+      - zelia-network
+
+  # DOCUMENT PROCESSOR (Replaces/Enhances Submission Service)
+  document-processor:
+    build:
+      context: ./backend/services/document-processor
+      dockerfile: Dockerfile
+    container_name: zelia-document-processor
+    ports:
+      - "8004:8000"
+    environment:
+      DATABASE_URL: postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+      OCR_SERVICE_URL: http://ocr-service:8003
+      LAYOUT_WORKER_URL: http://layout-worker:8006
+      RETRIEVAL_SERVICE_URL: http://retrieval-service:8007
+      RULES_ENGINE_URL: http://rules-engine:8005
+    depends_on:
+      - postgres
+      - ocr-service
+      - layout-worker
+    networks:
+      - zelia-network
+
+  submission-service:
+    build:
+      context: ./backend/services/submission-service
+      dockerfile: Dockerfile
+    container_name: zelia-submission
+    ports:
+      - "8009:8004"
+    environment:
+      - DATABASE_URL=postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=verified-docs
+      - OCR_SERVICE_URL=http://ocr-service:8003
+      - UIDAI_PUBLIC_KEY_PEM_PATH=/app/certs/uidai_offline_public_key.pem
+      - AADHAAR_QR_STRICT=${AADHAAR_QR_STRICT:-false}
+      - ENFORCE_CHW_ROLE=${ENFORCE_CHW_ROLE:-true}
+      - FORM_FILLER_URL=http://form-filler-service:8013
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - ./backend/services/submission-service/main.py:/app/main.py
+    networks:
+      - zelia-network
+
+  # EXISTING SERVICES (Preserved/Updated)
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: zelia-postgres
+    environment:
+      POSTGRES_DB: zelia
+      POSTGRES_USER: zelia
+      POSTGRES_PASSWORD: zelia_secure_2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - zelia-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U zelia" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: zelia-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - zelia-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: zelia-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: server /minio_data --console-address ":9001"
+    networks:
+      - zelia-network
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: zelia-n8n
+    user: "0:0"
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - "mkdir -p /home/node/.n8n/node_modules && cd /home/node/.n8n && if [ -d node_modules/pdf-lib ]; then :; else npm install --no-audit --no-fund pdf-lib axios; fi && mkdir -p /usr/local/lib/node_modules/n8n/node_modules && ln -sfn /home/node/.n8n/node_modules/pdf-lib /usr/local/lib/node_modules/n8n/node_modules/pdf-lib && ln -sfn /home/node/.n8n/node_modules/@pdf-lib /usr/local/lib/node_modules/n8n/node_modules/@pdf-lib && ln -sfn /home/node/.n8n/node_modules/pako /usr/local/lib/node_modules/n8n/node_modules/pako && ln -sfn /home/node/.n8n/node_modules/tslib /usr/local/lib/node_modules/n8n/node_modules/tslib && n8n start"
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: n8n
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_SECURE_COOKIE: "false"
+      N8N_CORS_ALLOWED_ORIGINS: "*"
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: zelia
+      DB_POSTGRESDB_USER: zelia
+      DB_POSTGRESDB_PASSWORD: zelia_secure_2024
+      WEBHOOK_URL: http://n8n:5678/
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_LOG_LEVEL: debug
+      N8N_DEBUG: "true"
+      N8N_USER_FOLDER: /home/node/.n8n
+      N8N_ENCRYPTION_KEY: "M30sdFMy6GNr7mI8x++Gwaym7OHb2YKz"
+      # API Keys for Workflows
+      ULTRAVOX_API_KEY: ${ULTRAVOX_API_KEY}
+      ULTRAVOX_AGENT_ID: ${ULTRAVOX_AGENT_ID}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      NODE_FUNCTION_ALLOW_EXTERNAL: "pdf-lib,axios"
+      NODE_FUNCTION_ALLOW_BUILTIN: "http,https,buffer,url,stream,zlib,events,util,crypto"
+      N8N_RUNNERS_DISABLED: "true"
+      N8N_RUNNERS_MODE: "internal"
+      NODE_PATH: "/home/node/.n8n/node_modules"
+    depends_on:
+      - postgres
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - zelia-network
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # -- OTHER EXISTING SERVICES (Ports Preserved) --
+  embedding-service:
+    build:
+      context: ./backend/services/embedding-service
+    container_name: zelia-embedding
+    ports:
+      - "8001:8001"
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  layout-worker:
+    build:
+      context: ./backend/services/layout-worker
+    container_name: zelia-layout
+    ports:
+      - "8006:8006"
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  ocr-service:
+    build:
+      context: ./backend/services/ocr-service
+    container_name: zelia-ocr
+    ports:
+      - "8003:8003"
+    depends_on:
+      - postgres
+    networks:
+      - zelia-network
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - DATABASE_URL=postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+      - DOCUMENTS_BUCKET=user-documents
+    volumes:
+      - ./backend/services/ocr-service/document_parsers.py:/app/document_parsers.py
+      - ./backend/services/ocr-service/ocr_service.py:/app/ocr_service.py
+    restart: unless-stopped
+
+  rules-engine:
+    build:
+      context: ./backend/services/rules-engine
+    container_name: zelia-rules
+    ports:
+      - "8005:8005"
+    networks:
+      - zelia-network
+    environment:
+      - DATABASE_URL=postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+    restart: unless-stopped
+
+  retrieval-service:
+    build:
+      context: ./backend/services/retrieval-service
+    container_name: zelia-retrieval
+    ports:
+      - "8007:8007"
+    command: gunicorn --bind 0.0.0.0:8007 --workers 1 --timeout 300 retrieval_service:app
+    environment:
+      - DATABASE_URL=postgresql://zelia:zelia_secure_2024@postgres:5432/zelia
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-zelia-schemes}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT:-us-east-1}
+      - PINECONE_NAMESPACE=${PINECONE_NAMESPACE:-schemes}
+      - PINECONE_REQUIRED=${PINECONE_REQUIRED:-false}
+      - RETRIEVAL_MODE=${RETRIEVAL_MODE:-pinecone_primary_annoy_fallback}
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  # Scheme Service (Moved to 8016 to verify conflicts, was 8013)
+  scheme-service:
+    build:
+      context: ./backend/services/scheme-service
+    container_name: zelia-scheme
+    ports:
+      - "8016:8002"
+    command: sh -c "pip install asyncpg==0.29.0 && python main.py"
+    volumes:
+      - ./backend/services/scheme-service/main.py:/app/main.py
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+    container_name: zelia-auth
+    ports:
+      - "8012:8001"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  ultravox-proxy:
+    build:
+      context: ./backend/services/ultravox-proxy
+    container_name: zelia-ultravox
+    ports:
+      - "8010:8010"
+    environment:
+      - ULTRAVOX_API_KEY=${ULTRAVOX_API_KEY}
+      - PORT=8010
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  web-scraper:
+    build:
+      context: ./backend/services/web-scraper
+    container_name: zelia-scraper
+    ports:
+      - "8008:8008"
+    networks:
+      - zelia-network
+    restart: unless-stopped
+  # submission-service:
+  #   build:
+  #     context: ./backend/services/submission-service
+  #   container_name: zelia-submission
+  #   ports:
+  #     - "8004:8004"
+  #   environment:
+  #     - MINIO_ENDPOINT=minio:9000
+  #     - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+  #     - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+  #     - MINIO_BUCKET=zelia-submissions
+  #     - OCR_URL=http://ocr-service:8003
+  #     - LAYOUT_URL=http://layout-worker:8006
+  #     - EMBEDDING_URL=http://embedding-service:8001
+  #   env_file: .env
+  #   volumes:
+  #     - submission_uploads:/app/uploads
+  #   depends_on:
+  #     - minio
+  #     - ocr-service
+  #   networks:
+  #     - zelia-network
+  #   restart: unless-stopped
+
+
+  # INTENT DETECTOR SERVICE (NEW - Uses OpenAI)
+  intent-detector:
+    build:
+      context: ./backend/services/intent-detector
+    container_name: zelia-intent-detector
+    ports:
+      - "8011:8011"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - OPENAI_MODEL=gpt-3.5-turbo
+      - GROQ_MODEL=${GROQ_MODEL:-llama3-8b-8192}
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  # RESPONSE GENERATOR SERVICE (NEW - Uses OpenAI)
+  response-generator:
+    build:
+      context: ./backend/services/response-generator
+    container_name: zelia-response-generator
+    ports:
+      - "8017:8015"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - OPENAI_MODEL=gpt-3.5-turbo
+      - GROQ_MODEL=llama-3.3-70b-versatile
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  pinecone-service:
+    build:
+      context: ./backend/services/pinecone-service
+      dockerfile: Dockerfile
+    container_name: zelia-pinecone-service
+    environment:
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-zelia-documents}
+    ports:
+      - "8014:8014"
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  form-filler-service:
+    build:
+      context: ./backend/services/form-filler
+      dockerfile: Dockerfile
+    container_name: zelia-form-filler
+    environment:
+      - SERVICE_PORT=8013
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - AWS_REGION=us-east-1
+    ports:
+      - "8019:8013"
+    volumes:
+      - ./dataset/govt/templates:/app/templates:ro
+    networks:
+      - zelia-network
+    restart: unless-stopped
+    depends_on:
+      - minio
+
+  voice-processor:
+    build:
+      context: ./backend/services/voice-processor
+      dockerfile: Dockerfile
+    container_name: zelia-voice-processor
+    ports:
+      - "8018:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - FASTER_WHISPER_MODEL=${FASTER_WHISPER_MODEL:-base}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8}
+      - WHISPER_BEAM_SIZE=${WHISPER_BEAM_SIZE:-5}
+      - WHISPER_VAD_FILTER=${WHISPER_VAD_FILTER:-true}
+      - ASR_TEMPERATURE=${ASR_TEMPERATURE:-0.0}
+      - ASR_CONDITION_ON_PREVIOUS_TEXT=${ASR_CONDITION_ON_PREVIOUS_TEXT:-false}
+      - ASR_USE_LANGUAGE_PROMPTS=${ASR_USE_LANGUAGE_PROMPTS:-true}
+      - ASR_STRICT=${ASR_STRICT:-false}
+    depends_on:
+      - postgres
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zelia-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: zelia-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - zelia-network
+    restart: unless-stopped
+
+networks:
+  zelia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  n8n_data:
+  prometheus_data:
+  grafana_data:

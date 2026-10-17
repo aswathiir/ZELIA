@@ -1,0 +1,597 @@
+{
+    "name": "ZELIA Complete Workflow - Production",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "zelia-assist",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "webhook-input",
+            "name": "User Input Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                240,
+                400
+            ],
+            "notes": "Accepts document uploads, voice queries, or text queries"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Detect input language\nconst input = $input.item.json;\nconst query = input.query || input.text || '';\n\n// Simple language detection based on Unicode ranges\nfunction detectLanguage(text) {\n  if (/[\\u0900-\\u097F]/.test(text)) return 'hi-IN';  // Hindi\n  if (/[\\u0B80-\\u0BFF]/.test(text)) return 'ta-IN';  // Tamil\n  if (/[\\u0D00-\\u0D7F]/.test(text)) return 'ml-IN';  // Malayalam\n  if (/[\\u0C00-\\u0C7F]/.test(text)) return 'te-IN';  // Telugu\n  return 'en-IN';  // Default to English\n}\n\nconst detectedLang = detectLanguage(query);\n\nreturn {\n  ...input,\n  detected_language: detectedLang,\n  needs_translation: detectedLang !== 'en-IN'\n};"
+            },
+            "id": "detect-language",
+            "name": "Detect Language",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.needs_translation}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "check-translation",
+            "name": "Needs Translation?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                680,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://translation-service:8009/translate",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"text\": \"{{$json.query}}\", \"source_lang\": \"{{$json.detected_language}}\", \"target_lang\": \"en-IN\"}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "translate-query",
+            "name": "Translate Query to English",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                900,
+                300
+            ],
+            "notes": "Translate user query to English for search"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://ocr-service:8003/extract",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{$node['User Input Webhook'].json}}",
+                "options": {
+                    "timeout": 30000,
+                    "retry": {
+                        "enabled": true,
+                        "maxTries": 2
+                    }
+                }
+            },
+            "id": "ocr-extract",
+            "name": "OCR Extraction",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                900,
+                500
+            ],
+            "notes": "Extract text from uploaded document"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://layout-worker:8006/analyze",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"image\": \"{{$node['User Input Webhook'].json.document}}\", \"ocr_result\": {{$json}}}",
+                "options": {
+                    "timeout": 45000
+                }
+            },
+            "id": "layoutlm-analyze",
+            "name": "LayoutLM Field Detection",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1120,
+                500
+            ],
+            "notes": "Detect form fields and structure"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract and map to canonical fields\nconst layoutResult = $input.item.json;\nconst canonicalMapping = {\n  'head_name': 'head_of_household_name',\n  'name': 'head_of_household_name',\n  'age': 'head_age',\n  'ration_card': 'ration_card_number',\n  'ration card': 'ration_card_number',\n  'aadhar': 'aadhar_number',\n  'aadhaar': 'aadhar_number',\n  'income': 'monthly_income',\n  'monthly income': 'monthly_income',\n  'caste': 'caste_category',\n  'category': 'caste_category',\n  'disability': 'disability_status',\n  'children': 'number_of_children',\n  'marital status': 'marital_status',\n  'widow': 'marital_status',\n  'address': 'residential_address',\n  'phone': 'phone_number',\n  'mobile': 'phone_number',\n  'bank account': 'bank_account_number',\n  'account number': 'bank_account_number',\n  'gender': 'gender',\n  'sex': 'gender',\n  'occupation': 'occupation',\n  'job': 'occupation',\n  'education': 'education_level'\n};\n\nconst extractedFields = layoutResult.extracted_fields || {};\nconst canonicalFields = {};\nconst fieldConfidence = {};\n\n// Map to canonical field names\nObject.keys(extractedFields).forEach(key => {\n  const lowerKey = key.toLowerCase();\n  const canonicalKey = canonicalMapping[lowerKey] || key;\n  canonicalFields[canonicalKey] = extractedFields[key];\n  \n  // Extract confidence if available\n  if (layoutResult.field_confidence && layoutResult.field_confidence[key]) {\n    fieldConfidence[canonicalKey] = layoutResult.field_confidence[key];\n  }\n});\n\n// Calculate average confidence\nconst confidenceValues = Object.values(fieldConfidence);\nconst avgConfidence = confidenceValues.length > 0 \n  ? confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length\n  : 0.5;\n\nreturn {\n  canonical_fields: canonicalFields,\n  field_confidence: fieldConfidence,\n  avg_confidence: avgConfidence,\n  document_type: layoutResult.document_type || 'unknown',\n  needs_manual_review: avgConfidence < 0.7\n};"
+            },
+            "id": "extract-canonical",
+            "name": "Extract Canonical Fields",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                500
+            ],
+            "notes": "Map extracted fields to canonical schema"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://web-scraper:8008/scrape/schemes",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"query\": \"{{$node['Translate Query to English']?.json.translated_text || $node['User Input Webhook'].json.query}}\", \"max_results\": 10}",
+                "options": {
+                    "timeout": 15000
+                }
+            },
+            "id": "web-scraper-search",
+            "name": "Web Scraper Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1120,
+                300
+            ],
+            "notes": "Search schemes using web scraper"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://retrieval-service:8007/search/hybrid",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"query\": \"{{$node['Translate Query to English']?.json.translated_text || $node['User Input Webhook'].json.query}}\", \"k\": 10, \"threshold\": 0.3}",
+                "options": {
+                    "timeout": 15000
+                }
+            },
+            "id": "rag-search",
+            "name": "RAG Hybrid Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1120,
+                200
+            ],
+            "notes": "Vector + semantic search"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Merge and rank schemes from both sources\nconst webResults = $node['Web Scraper Search']?.json || [];\nconst ragResults = $node['RAG Hybrid Search']?.json?.results || [];\n\nconst allSchemes = [];\nconst seenIds = new Set();\n\n// Add RAG results\nragResults.forEach(result => {\n  const schemeId = result.metadata?.scheme_id || result.id;\n  if (!seenIds.has(schemeId)) {\n    allSchemes.push({\n      scheme_id: schemeId,\n      title: result.metadata?.title || result.title,\n      description: result.metadata?.description || result.description,\n      category: result.metadata?.category || 'General',\n      ministry: result.metadata?.ministry || '',\n      eligibility: result.metadata?.eligibility || {},\n      benefits: result.metadata?.benefits || [],\n      documents: result.metadata?.documents || [],\n      official_link: result.metadata?.url || result.url || '',\n      relevance_score: result.score || 0.5,\n      source: 'RAG'\n    });\n    seenIds.add(schemeId);\n  }\n});\n\n// Add web scraper results (avoid duplicates)\nif (Array.isArray(webResults)) {\n  webResults.forEach(result => {\n    const schemeId = result.metadata?.scheme_id || result.scheme_id;\n    if (!seenIds.has(schemeId)) {\n      allSchemes.push({\n        scheme_id: schemeId,\n        title: result.title,\n        description: result.description,\n        category: result.metadata?.category || 'General',\n        ministry: result.metadata?.ministry || '',\n        eligibility: result.metadata?.eligibility || {},\n        benefits: result.metadata?.benefits || [],\n        documents: result.metadata?.documents || [],\n        official_link: result.url || result.source || '',\n        relevance_score: result.relevance_score || 0.5,\n        source: 'WebScraper'\n      });\n      seenIds.add(schemeId);\n    }\n  });\n}\n\n// Sort by relevance\nallSchemes.sort((a, b) => b.relevance_score - a.relevance_score);\n\n// Take top 5\nconst topSchemes = allSchemes.slice(0, 5);\n\nreturn {\n  schemes: topSchemes,\n  total_found: allSchemes.length,\n  top_count: topSchemes.length\n};"
+            },
+            "id": "merge-rank-schemes",
+            "name": "Merge & Rank Schemes",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                250
+            ],
+            "notes": "Combine results and rank by relevance"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract scheme metadata for eligibility checking\nconst schemes = $input.item.json.schemes || [];\nconst extractedMetadata = [];\n\nschemes.forEach(scheme => {\n  extractedMetadata.push({\n    scheme_id: scheme.scheme_id,\n    title: scheme.title,\n    category: scheme.category,\n    eligibility_criteria: scheme.eligibility,\n    benefits_summary: Array.isArray(scheme.benefits) \n      ? scheme.benefits.join('; ')\n      : String(scheme.benefits || ''),\n    required_documents: Array.isArray(scheme.documents)\n      ? scheme.documents.join(', ')\n      : String(scheme.documents || ''),\n    official_link: scheme.official_link,\n    relevance_score: scheme.relevance_score\n  });\n});\n\nreturn {\n  scheme_metadata: extractedMetadata,\n  total_schemes: extractedMetadata.length\n};"
+            },
+            "id": "extract-metadata",
+            "name": "Extract Scheme Metadata",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1560,
+                250
+            ],
+            "notes": "Extract structured metadata from schemes"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://translation-service:8009/translate/batch",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"texts\": {{$json.scheme_metadata.map(s => s.title)}}, \"source_lang\": \"en-IN\", \"target_lang\": \"{{$node['Detect Language'].json.detected_language}}\"}",
+                "options": {
+                    "timeout": 20000
+                }
+            },
+            "id": "translate-schemes",
+            "name": "Translate Scheme Titles",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1780,
+                250
+            ],
+            "notes": "Translate scheme titles to user language"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$node['Extract Canonical Fields']?.json.avg_confidence || 0}}",
+                            "operation": "largerEqual",
+                            "value2": 0.7
+                        }
+                    ]
+                }
+            },
+            "id": "confidence-check",
+            "name": "High Confidence?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                500
+            ],
+            "notes": "Check if OCR confidence is high enough for auto-processing"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://rules-engine:8005/evaluate",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"scheme_id\": \"{{$node['Extract Scheme Metadata'].json.scheme_metadata[0]?.scheme_id}}\", \"applicant_data\": {{$node['Extract Canonical Fields'].json.canonical_fields}}}",
+                "options": {
+                    "timeout": 10000,
+                    "retry": {
+                        "enabled": true,
+                        "maxTries": 3
+                    }
+                }
+            },
+            "id": "auto-eligibility",
+            "name": "Check Eligibility (Auto)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1780,
+                400
+            ],
+            "notes": "Automatic eligibility check for high-confidence extractions"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/create",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"applicant_data\": {{$node['Extract Canonical Fields'].json.canonical_fields}}, \"eligibility\": {{$node['Check Eligibility (Auto)'].json}}, \"status\": \"approved\", \"confidence\": {{$node['Extract Canonical Fields'].json.avg_confidence}}}",
+                "options": {
+                    "timeout": 5000
+                }
+            },
+            "id": "create-auto-submission",
+            "name": "Create Auto Submission",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                2000,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/create",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"applicant_data\": {{$node['Extract Canonical Fields'].json.canonical_fields}}, \"status\": \"pending_review\", \"review_reason\": \"Low OCR confidence\", \"confidence\": {{$node['Extract Canonical Fields'].json.avg_confidence}}}",
+                "options": {
+                    "timeout": 5000
+                }
+            },
+            "id": "create-manual-submission",
+            "name": "Create Manual Review Submission",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1780,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Build comprehensive response\nconst schemes = $node['Extract Scheme Metadata']?.json?.scheme_metadata || [];\nconst translatedSchemes = $node['Translate Scheme Titles']?.json?.results || [];\nconst submission = $node['Create Auto Submission']?.json || $node['Create Manual Review Submission']?.json;\nconst detectedLang = $node['Detect Language'].json.detected_language;\nconst canonicalFields = $node['Extract Canonical Fields']?.json;\n\n// Merge translated titles with scheme data\nconst schemesWithTranslation = schemes.map((scheme, idx) => ({\n  ...scheme,\n  title_translated: translatedSchemes[idx]?.translated || scheme.title\n}));\n\nconst response = {\n  success: true,\n  detected_language: detectedLang,\n  schemes_found: schemesWithTranslation,\n  total_schemes: schemes.length\n};\n\n// Add submission info if document was processed\nif (submission) {\n  response.submission = {\n    submission_id: submission.submission_id,\n    status: submission.status,\n    extracted_fields: canonicalFields?.canonical_fields || {},\n    confidence: canonicalFields?.avg_confidence || 0,\n    needs_review: canonicalFields?.needs_manual_review || false\n  };\n}\n\n// Add eligibility if checked\nif ($node['Check Eligibility (Auto)']?.json) {\n  response.eligibility = $node['Check Eligibility (Auto)'].json;\n}\n\nreturn response;"
+            },
+            "id": "build-response",
+            "name": "Build Final Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2220,
+                400
+            ],
+            "notes": "Construct comprehensive JSON response"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://translation-service:8009/translate",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"text\": \"{{JSON.stringify($json)}}\", \"source_lang\": \"en-IN\", \"target_lang\": \"{{$node['Detect Language'].json.detected_language}}\"}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "translate-response",
+            "name": "Translate Response",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                2440,
+                400
+            ],
+            "notes": "Translate final response to user's language"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/log-interaction",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"query\": \"{{$node['User Input Webhook'].json.query}}\", \"detected_language\": \"{{$node['Detect Language'].json.detected_language}}\", \"schemes_found\": {{$node['Build Final Response'].json.total_schemes}}, \"timestamp\": \"{{new Date().toISOString()}}\"}",
+                "options": {
+                    "timeout": 3000
+                },
+                "continueOnFail": true
+            },
+            "id": "log-interaction",
+            "name": "Log Interaction",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                2220,
+                200
+            ],
+            "notes": "Log for analytics (non-blocking)"
+        }
+    ],
+    "connections": {
+        "User Input Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Detect Language",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Detect Language": {
+            "main": [
+                [
+                    {
+                        "node": "Needs Translation?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Needs Translation?": {
+            "main": [
+                [
+                    {
+                        "node": "Translate Query to English",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Web Scraper Search",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "RAG Hybrid Search",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Translate Query to English": {
+            "main": [
+                [
+                    {
+                        "node": "Web Scraper Search",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "RAG Hybrid Search",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "OCR Extraction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OCR Extraction": {
+            "main": [
+                [
+                    {
+                        "node": "LayoutLM Field Detection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "LayoutLM Field Detection": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Canonical Fields",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Canonical Fields": {
+            "main": [
+                [
+                    {
+                        "node": "High Confidence?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Web Scraper Search": {
+            "main": [
+                [
+                    {
+                        "node": "Merge & Rank Schemes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "RAG Hybrid Search": {
+            "main": [
+                [
+                    {
+                        "node": "Merge & Rank Schemes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge & Rank Schemes": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Scheme Metadata",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Scheme Metadata": {
+            "main": [
+                [
+                    {
+                        "node": "Translate Scheme Titles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Translate Scheme Titles": {
+            "main": [
+                [
+                    {
+                        "node": "Build Final Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "High Confidence?": {
+            "main": [
+                [
+                    {
+                        "node": "Check Eligibility (Auto)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Create Manual Review Submission",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Eligibility (Auto)": {
+            "main": [
+                [
+                    {
+                        "node": "Create Auto Submission",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Auto Submission": {
+            "main": [
+                [
+                    {
+                        "node": "Build Final Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Manual Review Submission": {
+            "main": [
+                [
+                    {
+                        "node": "Build Final Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Final Response": {
+            "main": [
+                [
+                    {
+                        "node": "Translate Response",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Log Interaction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

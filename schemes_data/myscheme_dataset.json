@@ -1,0 +1,363 @@
+{
+  "schemes": [
+    {
+      "scheme_id": "pmay_001",
+      "name": "Pradhan Mantri Awas Yojana (PMAY)",
+      "description": "Housing for All scheme providing financial assistance for construction of pucca houses. Subsidy up to Rs. 2.67 lakh for EWS/LIG categories.",
+      "category": "Housing",
+      "ministry": "Ministry of Housing and Urban Affairs",
+      "state": "All India",
+      "eligibility": {
+        "income": "Below Rs. 18 lakh annually",
+        "criteria": [
+          "First-time home buyer",
+          "EWS/LIG/MIG category"
+        ]
+      },
+      "benefits": [
+        "Subsidy up to Rs. 2.67 lakh",
+        "Lower interest rates on home loans"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Income Certificate",
+        "Property Documents",
+        "Bank Account Details"
+      ],
+      "application_process": "Apply online through PMAY portal or visit nearest Common Service Center",
+      "official_link": "https://pmaymis.gov.in/",
+      "keywords": [
+        "housing",
+        "awas",
+        "home",
+        "subsidy",
+        "ews",
+        "lig",
+        "pmay"
+      ]
+    },
+    {
+      "scheme_id": "widow_pension_001",
+      "name": "National Social Assistance Programme - Widow Pension",
+      "description": "Financial assistance to widows below poverty line. Monthly pension of Rs. 300-500 provided to support livelihood.",
+      "category": "Social Welfare",
+      "ministry": "Ministry of Social Justice and Empowerment",
+      "state": "All India",
+      "eligibility": {
+        "age": "40+ years",
+        "criteria": [
+          "Widow",
+          "Below Poverty Line",
+          "No regular income source"
+        ]
+      },
+      "benefits": [
+        "Monthly pension Rs. 300-500",
+        "Direct Benefit Transfer to bank account"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "BPL Card",
+        "Widow Certificate",
+        "Bank Account Details",
+        "Age Proof"
+      ],
+      "application_process": "Apply through local Panchayat or Municipal office",
+      "official_link": "https://nsap.nic.in/",
+      "keywords": [
+        "widow",
+        "pension",
+        "social",
+        "assistance",
+        "women",
+        "nsap"
+      ]
+    },
+    {
+      "scheme_id": "ignoaps_001",
+      "name": "Indira Gandhi National Old Age Pension Scheme (IGNOAPS)",
+      "description": "Monthly pension for senior citizens above 60 years with no regular income source. Rs. 200-500 per month based on age group.",
+      "category": "Social Welfare",
+      "ministry": "Ministry of Social Justice and Empowerment",
+      "state": "All India",
+      "eligibility": {
+        "age": "60+ years",
+        "criteria": [
+          "BPL family",
+          "No regular income source"
+        ]
+      },
+      "benefits": [
+        "Rs. 200/month (60-79 years)",
+        "Rs. 500/month (80+ years)",
+        "Direct bank transfer"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Age Proof",
+        "BPL Card",
+        "Bank Account Details"
+      ],
+      "application_process": "Apply at local Panchayat/Municipal office or online through state portal",
+      "official_link": "https://nsap.nic.in/",
+      "keywords": [
+        "old",
+        "age",
+        "pension",
+        "senior",
+        "citizen",
+        "elderly",
+        "ignoaps"
+      ]
+    },
+    {
+      "scheme_id": "disability_pension_001",
+      "name": "National Social Assistance Programme - Disability Pension",
+      "description": "Financial support for persons with disabilities. Monthly pension for those with 80% or more disability.",
+      "category": "Social Welfare",
+      "ministry": "Ministry of Social Justice and Empowerment",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "80% or more disability",
+          "BPL family",
+          "Age 18-59 years"
+        ]
+      },
+      "benefits": [
+        "Monthly pension Rs. 300-500",
+        "Direct benefit transfer"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Disability Certificate (80%+)",
+        "BPL Card",
+        "Bank Account Details"
+      ],
+      "application_process": "Apply through local authorities with disability certificate",
+      "official_link": "https://nsap.nic.in/",
+      "keywords": [
+        "disability",
+        "pension",
+        "handicapped",
+        "pwd",
+        "divyang",
+        "nsap"
+      ]
+    },
+    {
+      "scheme_id": "mgnrega_001",
+      "name": "Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA)",
+      "description": "Provides 100 days of guaranteed wage employment to rural households. Focuses on creating durable assets.",
+      "category": "Employment",
+      "ministry": "Ministry of Rural Development",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "Rural household",
+          "Adult member willing to do unskilled manual work"
+        ]
+      },
+      "benefits": [
+        "100 days guaranteed employment per year",
+        "Minimum wage Rs. 200-300 per day",
+        "Work within 5km of residence"
+      ],
+      "documents": [
+        "Job Card",
+        "Aadhaar Card",
+        "Bank Account Details"
+      ],
+      "application_process": "Apply for job card at local Gram Panchayat",
+      "official_link": "https://nrega.nic.in/",
+      "keywords": [
+        "employment",
+        "rural",
+        "mgnrega",
+        "work",
+        "wage",
+        "job",
+        "nrega"
+      ]
+    },
+    {
+      "scheme_id": "girl_scholarship_001",
+      "name": "National Scholarship Portal - Girl Child Scholarship",
+      "description": "Scholarships for girl students from economically weaker sections. Covers tuition fees and other expenses.",
+      "category": "Education",
+      "ministry": "Ministry of Education",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "Girl student",
+          "Family income below Rs. 6 lakh",
+          "Minimum 50% marks"
+        ]
+      },
+      "benefits": [
+        "Tuition fee coverage",
+        "Maintenance allowance",
+        "Book allowance"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Income Certificate",
+        "Mark sheets",
+        "Bank Account Details",
+        "Caste Certificate (if applicable)"
+      ],
+      "application_process": "Apply online through National Scholarship Portal",
+      "official_link": "https://scholarships.gov.in/",
+      "keywords": [
+        "scholarship",
+        "girl",
+        "education",
+        "student",
+        "women",
+        "study"
+      ]
+    },
+    {
+      "scheme_id": "pmjdy_001",
+      "name": "Pradhan Mantri Jan Dhan Yojana (PMJDY)",
+      "description": "Financial inclusion scheme providing zero-balance bank accounts. Includes RuPay debit card and accident insurance.",
+      "category": "Financial Inclusion",
+      "ministry": "Ministry of Finance",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "Indian citizen",
+          "No existing bank account"
+        ]
+      },
+      "benefits": [
+        "Zero-balance account",
+        "RuPay debit card",
+        "Rs. 2 lakh accident insurance",
+        "Rs. 10,000 overdraft facility"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Address Proof",
+        "Photograph"
+      ],
+      "application_process": "Visit nearest bank branch or banking correspondent",
+      "official_link": "https://pmjdy.gov.in/",
+      "keywords": [
+        "bank",
+        "account",
+        "financial",
+        "inclusion",
+        "jan",
+        "dhan",
+        "pmjdy"
+      ]
+    },
+    {
+      "scheme_id": "pmjay_001",
+      "name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY)",
+      "description": "Health insurance scheme providing coverage up to Rs. 5 lakh per family per year. Cashless treatment at empaneled hospitals.",
+      "category": "Healthcare",
+      "ministry": "Ministry of Health and Family Welfare",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "Bottom 40% of population as per SECC database",
+          "Eligible families receive Ayushman card"
+        ]
+      },
+      "benefits": [
+        "Rs. 5 lakh coverage per family per year",
+        "Cashless treatment",
+        "Pre and post hospitalization coverage"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Ration Card",
+        "Ayushman Bharat Card"
+      ],
+      "application_process": "Check eligibility online and get Ayushman card from nearest CSC",
+      "official_link": "https://pmjay.gov.in/",
+      "keywords": [
+        "health",
+        "insurance",
+        "medical",
+        "hospital",
+        "ayushman",
+        "treatment",
+        "pmjay"
+      ]
+    },
+    {
+      "scheme_id": "pmkisan_001",
+      "name": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+      "description": "Income support to farmer families. Rs. 6000 per year in three equal installments through direct benefit transfer.",
+      "category": "Agriculture",
+      "ministry": "Ministry of Agriculture and Farmers Welfare",
+      "state": "All India",
+      "eligibility": {
+        "criteria": [
+          "Small and marginal farmers",
+          "Landholding farmers"
+        ]
+      },
+      "benefits": [
+        "Rs. 6000 per year",
+        "Three installments of Rs. 2000 each",
+        "Direct bank transfer"
+      ],
+      "documents": [
+        "Aadhaar Card",
+        "Land ownership documents",
+        "Bank Account Details"
+      ],
+      "application_process": "Apply online through PM-KISAN portal or visit nearest CSC",
+      "official_link": "https://pmkisan.gov.in/",
+      "keywords": [
+        "farmer",
+        "agriculture",
+        "kisan",
+        "farming",
+        "income",
+        "pmkisan"
+      ]
+    },
+    {
+      "scheme_id": "ssy_001",
+      "name": "Sukanya Samriddhi Yojana",
+      "description": "Savings scheme for girl child. High interest rate and tax benefits. Maturity at age 21 or marriage after 18 years.",
+      "category": "Financial Savings",
+      "ministry": "Ministry of Finance",
+      "state": "All India",
+      "eligibility": {
+        "age": "Girl child below 10 years",
+        "criteria": [
+          "Maximum 2 girl children per family"
+        ]
+      },
+      "benefits": [
+        "High interest rate (8%+)",
+        "Tax benefits under Section 80C",
+        "Partial withdrawal after age 18"
+      ],
+      "documents": [
+        "Girl child birth certificate",
+        "Parent's Aadhaar",
+        "Address proof",
+        "Photographs"
+      ],
+      "application_process": "Open account at post office or authorized bank",
+      "official_link": "https://www.india.gov.in/sukanya-samriddhi-yojana",
+      "keywords": [
+        "girl",
+        "child",
+        "savings",
+        "sukanya",
+        "investment",
+        "daughter",
+        "ssy"
+      ]
+    }
+  ],
+  "total": 10
+}

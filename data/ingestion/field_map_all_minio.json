@@ -1,0 +1,581 @@
+{
+  "version": "1.1",
+  "priority_fields": [
+    "name",
+    "age",
+    "address",
+    "gender"
+  ],
+  "templates": {
+    "Application_for_assiatance.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.75,
+          "y": 566.06,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.75,
+          "y": 673.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.75,
+          "y": 639.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.75,
+          "y": 606.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "childofjail.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 402.45,
+          "y": 702.78,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 402.45,
+          "y": 669.31,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 402.45,
+          "y": 635.85,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 402.45,
+          "y": 602.38,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "disabledgovt.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 770.1,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 673.54,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 597.78,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "intimationform.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 539.35,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 491.3,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 515.3,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "jobskilltraining.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 416.16,
+          "y": 665.28,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 416.16,
+          "y": 633.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 416.16,
+          "y": 601.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 416.16,
+          "y": 570.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "mathrjyothi.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 416.16,
+          "y": 665.28,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 416.16,
+          "y": 633.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 416.16,
+          "y": 601.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 416.16,
+          "y": 570.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "niramaya.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 416.16,
+          "y": 665.28,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 416.16,
+          "y": 633.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 416.16,
+          "y": 601.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 416.16,
+          "y": 570.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "old_age_pension_karnataka.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 707.52,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 694.86,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 682.14,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "pension1.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 707.52,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 694.86,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 682.14,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "pmjay_enrollment.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.75,
+          "y": 566.06,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.75,
+          "y": 673.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.75,
+          "y": 639.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.75,
+          "y": 606.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "pratibhaschem.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.6,
+          "y": 707.28,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.6,
+          "y": 673.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.6,
+          "y": 639.92,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.6,
+          "y": 606.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "stateaward.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.74,
+          "y": 707.01,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.74,
+          "y": 673.34,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.74,
+          "y": 639.68,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.74,
+          "y": 606.01,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "swasraya.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 707.21,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 673.54,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 639.86,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "baseline",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "tamiltraining.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 416.16,
+          "y": 496.74,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 416.16,
+          "y": 633.6,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 416.16,
+          "y": 244.38,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 416.16,
+          "y": 570.24,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    },
+    "widow_pension_karnataka.pdf": {
+      "strategy": {
+        "overlay_priority_fields_only": true,
+        "coordinate_source": "label_anchor+baseline"
+      },
+      "fields": {
+        "name": {
+          "page": 0,
+          "x": 404.82,
+          "y": 707.52,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "age": {
+          "page": 0,
+          "x": 404.82,
+          "y": 694.86,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "address": {
+          "page": 0,
+          "x": 404.82,
+          "y": 682.14,
+          "fontSize": 11.0,
+          "required": true
+        },
+        "gender": {
+          "page": 0,
+          "x": 404.82,
+          "y": 606.18,
+          "fontSize": 11.0,
+          "required": true
+        }
+      },
+      "status": "partial_auto_detected",
+      "notes": "Auto-generated from current MinIO template object; visually calibrate if needed."
+    }
+  }
+}

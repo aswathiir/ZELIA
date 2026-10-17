@@ -1,0 +1,6 @@
+{
+  "head_name": ["Name of head","head_of_household_name","தலைமை பெயர்","தலைவர் பெயர்"],
+  "age": ["Age","Date of birth","வயது","பிறந்த தேதி"],
+  "ration_card_no": ["Ration Card Number","Family Card No","குடும்ப அட்டை எண்"],
+  "address": ["Address","முகவரி"]
+}

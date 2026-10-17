@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-03-09T14:08:58.238865Z",
+  "status": "ready",
+  "steps": {
+    "minio_templates": {
+      "considered": 13,
+      "uploaded": 0,
+      "existing": 13,
+      "keys": [
+        "Application_for_assiatance.pdf",
+        "childofjail.pdf",
+        "disabledgovt.pdf",
+        "intimationform.pdf",
+        "jobskilltraining.pdf",
+        "mathrjyothi.pdf",
+        "niramaya.pdf",
+        "pension1.pdf",
+        "pmjay_enrollment.pdf",
+        "pratibhaschem.pdf",
+        "stateaward.pdf",
+        "swasraya.pdf",
+        "tamiltraining.pdf"
+      ]
+    },
+    "db_mapping": {
+      "scope": "active",
+      "total_schemes_in_scope": 8,
+      "unmapped_count": 0,
+      "unmapped_scheme_ids": [],
+      "mapped_template_keys": [
+        "Application_for_assiatance.pdf",
+        "disabledgovt.pdf",
+        "intimationform.pdf",
+        "pension1.pdf"
+      ],
+      "mapped_keys_missing_in_templates_bucket": []
+    }
+  }
+}

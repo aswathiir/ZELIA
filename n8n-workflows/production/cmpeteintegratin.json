@@ -1,0 +1,896 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-submit",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "53bdcc4c-7e78-4afb-9a87-ae512c2200b3",
+      "name": "Document Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        208
+      ],
+      "webhookId": "04629bde-a51d-49a4-a636-9b551069929a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAFE INPUT VALIDATION\nconst input = $input.item.json.body || $input.item.json;\n\nif (!input.document && !input.document_base64 && !input.image_url && !input.file_url) {\n  throw new Error('Missing document: provide document, document_base64, image_url, or file_url');\n}\n\nreturn {\n  document: input.document || input.document_base64 || input.image_url || input.file_url,\n  document_id: input.document_id || `doc_${Date.now()}`,\n  scheme_id: input.scheme_id || 'unknown',\n  language: input.language || 'en',\n  source: input.source || 'webhook',\n  user_data: input.user_data || {},\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "fcb5067b-0912-4da4-bea5-731a073315ef",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ocr-service:8003/extract",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"image\": \"{{$json.document}}\", \"language\": \"{{$json.language}}\"}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "3b87a9a3-b29f-4154-89d9-180b2f80f6ae",
+      "name": "OCR Extraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1104,
+        208
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.error === undefined && ($json.text || $json.words)}}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b238592-16f9-4c57-a289-50e105e9b052",
+      "name": "OCR Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://layout-worker:8006/analyze",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"words\": {{$json.words || []}}, \"boxes\": {{$json.boxes || []}}, \"image\": \"{{$node['Validate Input'].json.document}}\"}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "864b2a06-d958-457f-8045-6ecf010d12bf",
+      "name": "LayoutLM Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -656,
+        112
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAFE FALLBACK FOR OCR FAILURE\nconst inputData = $node['Validate Input']?.json || {};\n\nreturn {\n  document_type: 'unknown',\n  extracted_fields: inputData.user_data?.extracted_fields || {},\n  confidence: 0,\n  ocr_text: '',\n  needs_manual_review: true,\n  error: 'OCR extraction failed',\n  document_id: inputData.document_id,\n  scheme_id: inputData.scheme_id,\n  status: 'ocr_failed',\n  user_data: inputData.user_data\n};"
+      },
+      "id": "74e588b5-eb0d-4f25-9780-693bd4c8d660",
+      "name": "OCR Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAFE FIELD MAPPING WITH FALLBACKS\nconst getData = (nodeName) => {\n  try {\n    return $node[nodeName]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst ocr = getData('OCR Extraction');\nconst layout = getData('LayoutLM Analysis');\nconst input = getData('Validate Input');\n\n// Merge user-provided data with OCR results\nconst userFields = input?.user_data?.extracted_fields || {};\nconst ocrFields = {\n  full_text: ocr?.text || '',\n  ...layout?.entities\n};\n\nconst fields = { ...userFields, ...ocrFields };\n\n// Calculate confidence\nconst ocrConfidence = ocr?.confidence || 0;\nconst layoutConfidence = layout?.confidence || 0;\nconst confidence = Math.max(ocrConfidence, layoutConfidence, Object.keys(userFields).length > 0 ? 0.75 : 0);\n\nreturn {\n  extracted_fields: fields,\n  confidence: confidence,\n  needs_manual_review: confidence < 0.7,\n  status: 'processed',\n  document_id: input?.document_id,\n  scheme_id: input?.scheme_id\n};"
+      },
+      "id": "ae681fb7-461d-4f46-a0bb-6bf13628026b",
+      "name": "Field Mapping",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.confidence}}",
+              "operation": "largerEqual",
+              "value2": 0.7
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "127ce186-25c0-49c5-8b72-73afd3efe073",
+      "name": "High Confidence?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rules-engine:8005/evaluate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"scheme_id\": \"{{$json.scheme_id}}\", \"applicant_data\": {{$json.extracted_fields}}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "b14a805a-6396-4f66-86a4-d44e8e8f5716",
+      "name": "Auto Eligibility Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://submission-service:8004/submissions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"applicant_data\": {{$node['Field Mapping'].json.extracted_fields}}, \"eligibility\": {{$json}}, \"status\": \"approved\", \"document_reference\": \"{{$node['Field Mapping'].json.document_id}}\", \"scheme_id\": \"{{$node['Field Mapping'].json.scheme_id}}\", \"confidence\": {{$node['Field Mapping'].json.confidence}}}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "d8f72213-7874-4f25-95bc-c0ef301d39cf",
+      "name": "Create Submission",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        224,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://submission-service:8004/submissions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"applicant_data\": {{$json.extracted_fields}}, \"status\": \"pending_review\", \"document_reference\": \"{{$json.document_id}}\", \"scheme_id\": \"{{$json.scheme_id}}\", \"review_reason\": \"Low OCR confidence ({{$json.confidence}})\", \"confidence\": {{$json.confidence}}}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "f0ffdd20-99b9-4f91-b931-4c7d3e3a8175",
+      "name": "Flag for Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        208
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAFE RESPONSE BUILDER\nconst getData = (name) => {\n  try {\n    return $node[name]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst successSub = getData('Create Submission');\nconst manualSub = getData('Flag for Manual Review');\nconst fieldData = getData('Field Mapping');\nconst fallbackData = getData('OCR Fallback');\n\n// Determine which path was taken\nconst submission = Object.keys(successSub).length > 0 ? successSub : manualSub;\nconst finalFields = Object.keys(fieldData).length > 0 ? fieldData : fallbackData;\n\n// Build response\nlet status = 'unknown';\nlet message = '';\n\nif (finalFields.status === 'ocr_failed') {\n  status = 'failed';\n  message = 'OCR extraction failed - document needs manual processing';\n} else if (finalFields.needs_manual_review) {\n  status = 'pending_review';\n  message = 'Document submitted for CHW review due to low confidence';\n} else {\n  status = submission.status || 'processed';\n  message = 'Document processed successfully';\n}\n\nreturn {\n  success: status !== 'failed',\n  submission_id: submission.submission_id || submission.id || `sub_${Date.now()}`,\n  document_id: finalFields.document_id || 'unknown',\n  status: status,\n  extracted_fields: finalFields.extracted_fields || {},\n  confidence: finalFields.confidence || 0,\n  needs_review: finalFields.needs_manual_review || false,\n  message: message,\n  processed_at: new Date().toISOString()\n};"
+      },
+      "id": "a6e763e5-b343-4837-abfc-d33fcec0fe59",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ultravox-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f98dddca-3050-4e88-a495-5de3f93266b9",
+      "name": "Ultravox Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        672
+      ],
+      "webhookId": "ultravox-zelia-main"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PARSE ULTRAVOX WEBHOOK DATA SAFELY\nconst body = $input.item.json.body || $input.item.json;\n\n// Ultravox sends event type and call object\nconst eventType = body.event || 'unknown';\nconst call = body.call || {};\nconst callId = call.callId || call.call_id || 'unknown';\n\n// Extract transcript (varies by event type)\nlet transcript = '';\nif (call.transcript) {\n  transcript = typeof call.transcript === 'string' ? call.transcript : call.transcript.text || '';\n} else if (call.messages && Array.isArray(call.messages)) {\n  transcript = call.messages.map(m => m.text || m.content || '').join(' ');\n}\n\nconst extractedData = {\n  event_type: eventType,\n  call_id: callId,\n  transcript: transcript,\n  call_status: call.status || call.state || 'unknown',\n  duration: call.duration || 0,\n  metadata: call.metadata || {},\n  timestamp: new Date().toISOString(),\n  raw_call: call\n};\n\nconsole.log(`[Ultravox] Event: ${eventType}, Call ID: ${callId}, Status: ${extractedData.call_status}`);\n\nreturn extractedData;"
+      },
+      "id": "c69f8fa8-0b83-428a-a5b9-c959db76eee5",
+      "name": "Parse Ultravox Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.event_type}}",
+              "operation": "equals",
+              "value2": "call.ended"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "46f70d7c-96f3-4092-8313-8746c9be7d20",
+      "name": "Is Call Ended?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1136,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// EXTRACT STRUCTURED DATA FROM TRANSCRIPT\nconst data = $input.item.json;\nconst transcript = data.transcript || '';\nconst callId = data.call_id;\n\n// Helper function to extract field using multiple patterns\nfunction extractField(text, patterns) {\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) return match[1].trim();\n  }\n  return null;\n}\n\n// Extract common fields (English + Tamil patterns)\nconst extractedFields = {\n  name: extractField(transcript, [\n    /name is ([A-Za-z\\s]+)/i,\n    /my name is ([A-Za-z\\s]+)/i,\n    /பெயர்[:\\s]+([^,\\.\\n]+)/i,\n    /என் பெயர் ([^,\\.\\n]+)/i\n  ]),\n  age: extractField(transcript, [\n    /age is (\\d+)/i,\n    /(\\d+) years old/i,\n    /வயது[:\\s]+(\\d+)/i\n  ]),\n  ration_card: extractField(transcript, [\n    /ration card[:\\s]+([A-Z0-9]+)/i,\n    /card number[:\\s]+([A-Z0-9]+)/i,\n    /குடும்ப அட்டை[:\\s]+([A-Z0-9]+)/i\n  ]),\n  income: extractField(transcript, [\n    /income[:\\s]+(\\d+)/i,\n    /earn[:\\s]+(\\d+)/i,\n    /salary[:\\s]+(\\d+)/i,\n    /வருமானம்[:\\s]+(\\d+)/i\n  ]),\n  children: extractField(transcript, [\n    /(\\d+) children/i,\n    /children[:\\s]+(\\d+)/i,\n    /குழந்தைகள்[:\\s]+(\\d+)/i\n  ])\n};\n\n// Remove null values\nconst cleanedFields = {};\nfor (const [key, value] of Object.entries(extractedFields)) {\n  if (value !== null) cleanedFields[key] = value;\n}\n\n// Calculate confidence based on extracted fields\nconst fieldsFound = Object.keys(cleanedFields).length;\nconst confidence = Math.min(0.95, 0.5 + (fieldsFound * 0.1));\n\nconst documentPayload = {\n  file_url: `voice://ultravox/${callId}`,\n  file_id: `voice_${callId}_${Date.now()}`,\n  language: \"tam+eng\",\n  state_code: \"TN\",\n  doc_type: \"voice_application\",\n  source: \"ultravox_voice_call\",\n  user_data: {\n    source: \"ultravox_voice_call\",\n    call_id: callId,\n    transcript: transcript,\n    extracted_fields: cleanedFields,\n    confidence: confidence,\n    fields_extracted_count: fieldsFound\n  }\n};\n\nconsole.log(`[Voice Processing] Extracted ${fieldsFound} fields with ${confidence} confidence`);\n\nreturn documentPayload;"
+      },
+      "id": "788742d0-beb6-4aca-beb4-dda3fa51b8e5",
+      "name": "Extract Data from Voice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/document-submit",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "7c3d2276-a45f-4015-af27-99c0b9d1e85a",
+      "name": "Submit to Document Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -736,
+        560
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUILD RESPONSE FOR ULTRAVOX\nconst getData = (name) => {\n  try {\n    return $node[name]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst pipelineResult = getData('Submit to Document Pipeline');\nconst voiceData = getData('Extract Data from Voice');\nconst parsedData = getData('Parse Ultravox Data');\n\nconst callId = parsedData.call_id;\n\n// Check if pipeline succeeded\nconst success = pipelineResult.success !== false && !pipelineResult.error;\n\nconst response = {\n  success: success,\n  call_id: callId,\n  message: success \n    ? \"Your application has been received and is being processed\" \n    : \"We received your call but need manual review\",\n  results: {\n    manifest_id: pipelineResult.manifest_id || pipelineResult.submission_id,\n    extracted_fields: voiceData.user_data?.extracted_fields || {},\n    confidence: voiceData.user_data?.confidence || 0,\n    status: pipelineResult.status || 'pending',\n    needs_review: pipelineResult.needs_review || false\n  },\n  voice_response: generateVoiceResponse(pipelineResult, voiceData)\n};\n\nfunction generateVoiceResponse(result, voice) {\n  const fieldsCount = Object.keys(voice.user_data?.extracted_fields || {}).length;\n  \n  if (result.success && !result.needs_review) {\n    return `உங்கள் விண்ணப்பம் பதிவு செய்யப்பட்டது. ${fieldsCount} விவரங்கள் பெறப்பட்டன. சமூக சுகாதார ஊழியர் விரைவில் உங்களை தொடர்பு கொள்வார்.`;\n  } else if (result.needs_review) {\n    return \"உங்கள் விண்ணப்பம் பெறப்பட்டது. சமூக சுகாதார ஊழியர் விவரங்களை சரிபார்த்து உங்களை தொடர்பு கொள்வார்.\";\n  } else {\n    return \"உங்கள் தகவல் பெறப்பட்டது. மேலும் விவரங்களுக்கு சமூக சுகாதார ஊழியரை தொடர்பு கொள்ளவும்.\";\n  }\n}\n\nreturn response;"
+      },
+      "id": "fffc22b1-d391-4e61-b073-9878a148d0ca",
+      "name": "Format Voice Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json, null, 2)}}",
+        "options": {}
+      },
+      "id": "75e99478-a5af-41d9-8436-0a1ae37ac9fb",
+      "name": "Respond to Ultravox",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ACKNOWLEDGE OTHER EVENTS (call.started, call.joined, etc.)\nconst parsedData = $node['Parse Ultravox Data']?.json || {};\nconst callId = parsedData.call_id;\nconst eventType = parsedData.event_type;\n\nreturn {\n  success: true,\n  call_id: callId,\n  event_type: eventType,\n  message: `Event ${eventType} received for call ${callId}`,\n  status: \"acknowledged\"\n};"
+      },
+      "id": "ecd6940a-13dd-4abe-a38e-5347683543d5",
+      "name": "Acknowledge Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "1c1ab28b-4cc7-4121-bbc9-22117a84c6e9",
+      "name": "Respond - Acknowledged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO audit_ledger (\n  event_type,\n  entity_type,\n  entity_id,\n  payload,\n  created_at\n)\nVALUES (\n  'ultravox_{{$node[\"Parse Ultravox Data\"].json.event_type}}',\n  'voice_call',\n  '{{$node[\"Parse Ultravox Data\"].json.call_id}}',\n  '{{JSON.stringify({\n    event: $node[\"Parse Ultravox Data\"].json.event_type,\n    call_id: $node[\"Parse Ultravox Data\"].json.call_id,\n    transcript_length: $node[\"Parse Ultravox Data\"].json.transcript.length,\n    status: $node[\"Parse Ultravox Data\"].json.call_status\n  })}}'::jsonb,\n  NOW()\n)\nON CONFLICT DO NOTHING;",
+        "options": {}
+      },
+      "id": "a4182937-1518-4c72-b6fa-d0a04d26d439",
+      "name": "Log to Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        672
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Yc0iwEUrDp4IycIW",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zelia-assist",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "35e91bd7-7365-42f2-b5f7-a6cc85a90e9c",
+      "name": "Main Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1584,
+        1056
+      ],
+      "webhookId": "79304b2f-c82f-4d88-8ed2-d7706b50a03e"
+    },
+    {
+      "parameters": {
+        "jsCode": "// LANGUAGE DETECTION & QUERY PARSING\nconst input = $input.item.json.body || $input.item.json;\nconst query = input.query || input.q || '';\n\nif (!query) {\n  throw new Error('Missing query parameter');\n}\n\n// Detect language based on Unicode ranges\nlet lang = 'en-IN';\nif (/[\\u0900-\\u097F]/.test(query)) lang = 'hi-IN';  // Hindi\nelse if (/[\\u0B80-\\u0BFF]/.test(query)) lang = 'ta-IN';  // Tamil\nelse if (/[\\u0D00-\\u0D7F]/.test(query)) lang = 'ml-IN';  // Malayalam\nelse if (/[\\u0C80-\\u0CFF]/.test(query)) lang = 'kn-IN';  // Kannada\nelse if (/[\\u0A80-\\u0AFF]/.test(query)) lang = 'gu-IN';  // Gujarati\n\nreturn {\n  query: query,\n  detected_language: lang,\n  user_data: input.user_data || {},\n  session_id: input.session_id || `session_${Date.now()}`,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "a721d3e1-8d78-4b1a-8302-7e71127c7a17",
+      "name": "Parse & Detect Language",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://translation-service:8009/translate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({\n  text: $json.query,\n  source_lang: $json.detected_language,\n  target_lang: \"en-IN\"\n})}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "4513ef10-ff39-4665-9615-44eb8eb11a80",
+      "name": "Translate Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1136,
+        1056
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// PREPARE SEARCH QUERY\nconst getData = (name) => {\n  try {\n    return $node[name]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst originalData = getData('Parse & Detect Language');\nconst translationData = getData('Translate Query');\n\n// Use translated text if available, otherwise use original\nconst searchQuery = translationData.translated_text || translationData.text || originalData.query;\n\nreturn {\n  search_query: searchQuery,\n  original_query: originalData.query,\n  language: originalData.detected_language,\n  session_id: originalData.session_id\n};"
+      },
+      "id": "1910eb81-a5bd-4659-aaee-e0e7ac2fda32",
+      "name": "Prepare Search Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://retrieval-service:8007/search/hybrid",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({\n  query: $json.search_query,\n  k: 5\n})}}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "a824cdd7-b92c-4965-ba26-ac51aa544ce3",
+      "name": "RAG Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -704,
+        944
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://web-scraper:8008/scrape/schemes",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({\n  query: $json.search_query,\n  max_results: 5\n})}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "71c1d0c4-6ea7-4912-9a88-90119a3b76eb",
+      "name": "Web Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -704,
+        1152
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {},
+      "id": "710a1168-b3eb-4b5a-a8b4-86fca03219c9",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PROCESS AND DEDUPLICATE RESULTS\nconst getData = (name) => {\n  try {\n    return $node[name]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst ragData = getData('RAG Search');\nconst webData = getData('Web Scraper');\n\n// Collect all schemes\nconst allSchemes = [];\nconst seenIds = new Set();\n\n// Process RAG results\nif (ragData.results && Array.isArray(ragData.results)) {\n  ragData.results.forEach(r => {\n    const id = r.id || r.scheme_id;\n    if (!seenIds.has(id)) {\n      allSchemes.push({\n        id: id,\n        title: r.title || r.metadata?.title,\n        description: r.description || r.content || r.text,\n        score: r.score || r.relevance_score || 0,\n        source: 'rag',\n        eligibility: r.eligibility || r.metadata?.eligibility\n      });\n      seenIds.add(id);\n    }\n  });\n}\n\n// Process Web results\nif (webData.results && Array.isArray(webData.results)) {\n  webData.results.forEach(r => {\n    const id = r.id || r.scheme_id || r.title;\n    if (!seenIds.has(id)) {\n      allSchemes.push({\n        id: id,\n        title: r.title || r.name,\n        description: r.description || r.content,\n        score: r.score || r.relevance || 0.5,\n        source: 'web',\n        eligibility: r.eligibility\n      });\n      seenIds.add(id);\n    }\n  });\n}\n\n// Sort by score and take top results\nallSchemes.sort((a, b) => b.score - a.score);\nconst topSchemes = allSchemes.slice(0, 5);\n\nreturn {\n  schemes: topSchemes,\n  total_found: allSchemes.length,\n  search_query: getData('Prepare Search Query').search_query\n};"
+      },
+      "id": "4b8fda2c-b65c-44dd-b97b-62c97ebe55af",
+      "name": "Process & Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://translation-service:8009/translate/batch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({\n  texts: $json.schemes.map(s => s.title),\n  source_lang: \"en-IN\",\n  target_lang: $node['Parse & Detect Language'].json.detected_language\n})}}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "71a47ed5-7a31-4a01-b44d-4b9fd5a26312",
+      "name": "Translate Titles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -32,
+        1056
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// BUILD FINAL RESPONSE\nconst getData = (name) => {\n  try {\n    return $node[name]?.json || {};\n  } catch (e) {\n    return {};\n  }\n};\n\nconst processedData = getData('Process & Deduplicate');\nconst translationData = getData('Translate Titles');\nconst originalData = getData('Parse & Detect Language');\n\nconst schemes = processedData.schemes || [];\nconst translations = translationData.results || [];\n\n// Attach translations to schemes\nschemes.forEach((scheme, i) => {\n  if (translations[i]) {\n    scheme.title_translated = translations[i].translated || translations[i].text;\n  }\n});\n\n// Build response\nconst response = {\n  success: true,\n  query: originalData.query,\n  detected_language: originalData.detected_language,\n  session_id: originalData.session_id,\n  schemes_found: schemes,\n  total_schemes: schemes.length,\n  message: schemes.length > 0 \n    ? `Found ${schemes.length} relevant scheme(s)` \n    : 'No schemes found matching your query',\n  timestamp: new Date().toISOString()\n};\n\nreturn response;"
+      },
+      "id": "0bc6ab9e-804e-4431-8873-311714744c6c",
+      "name": "Format Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        1056
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Document Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "OCR Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Extraction": {
+      "main": [
+        [
+          {
+            "node": "OCR Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Success?": {
+      "main": [
+        [
+          {
+            "node": "LayoutLM Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OCR Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LayoutLM Analysis": {
+      "main": [
+        [
+          {
+            "node": "Field Mapping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Fallback": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Field Mapping": {
+      "main": [
+        [
+          {
+            "node": "High Confidence?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Confidence?": {
+      "main": [
+        [
+          {
+            "node": "Auto Eligibility Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto Eligibility Check": {
+      "main": [
+        [
+          {
+            "node": "Create Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Submission": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ultravox Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Ultravox Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ultravox Data": {
+      "main": [
+        [
+          {
+            "node": "Is Call Ended?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Call Ended?": {
+      "main": [
+        [
+          {
+            "node": "Extract Data from Voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Acknowledge Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data from Voice": {
+      "main": [
+        [
+          {
+            "node": "Submit to Document Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Document Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Format Voice Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Voice Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Ultravox",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acknowledge Event": {
+      "main": [
+        [
+          {
+            "node": "Respond - Acknowledged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Detect Language",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Detect Language": {
+      "main": [
+        [
+          {
+            "node": "Translate Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Query": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Query": {
+      "main": [
+        [
+          {
+            "node": "RAG Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Web Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Search": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Scraper": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Process & Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process & Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Translate Titles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Titles": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Indian/Mahe",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "S53YHVAMULQXg9JV"
+  },
+  "versionId": "43b6a625-d5e7-4a2e-bfab-fe3c147255b3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a0de2661633ee0139e79a9034c644b20331354dca87dddf80103614335368d9c"
+  },
+  "id": "S53YHVAMULQXg9JV",
+  "tags": []
+}

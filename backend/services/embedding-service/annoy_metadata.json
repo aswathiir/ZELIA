@@ -1,0 +1,92 @@
+[
+  {
+    "index": 0,
+    "scheme_id": "pmay_001",
+    "name": "Pradhan Mantri Awas Yojana (PMAY)",
+    "category": "Housing",
+    "state": "All India",
+    "description": "Housing for All scheme providing financial assistance for construction of pucca houses. Subsidy up to Rs. 2.67 lakh for EWS/LIG categories.",
+    "text": "Pradhan Mantri Awas Yojana (PMAY) Housing for All scheme providing financial assistance for construction of pucca houses. Subsidy up to Rs. 2.67 lakh for EWS/LIG categories. Housing housing awas home subsidy ews lig pmay First-time home buyer EWS/LIG/MIG category"
+  },
+  {
+    "index": 1,
+    "scheme_id": "widow_pension_001",
+    "name": "National Social Assistance Programme - Widow Pension",
+    "category": "Social Welfare",
+    "state": "All India",
+    "description": "Financial assistance to widows below poverty line. Monthly pension of Rs. 300-500 provided to support livelihood.",
+    "text": "National Social Assistance Programme - Widow Pension Financial assistance to widows below poverty line. Monthly pension of Rs. 300-500 provided to support livelihood. Social Welfare widow pension social assistance women nsap Widow Below Poverty Line No regular income source"
+  },
+  {
+    "index": 2,
+    "scheme_id": "ignoaps_001",
+    "name": "Indira Gandhi National Old Age Pension Scheme (IGNOAPS)",
+    "category": "Social Welfare",
+    "state": "All India",
+    "description": "Monthly pension for senior citizens above 60 years with no regular income source. Rs. 200-500 per month based on age group.",
+    "text": "Indira Gandhi National Old Age Pension Scheme (IGNOAPS) Monthly pension for senior citizens above 60 years with no regular income source. Rs. 200-500 per month based on age group. Social Welfare old age pension senior citizen elderly ignoaps BPL family No regular income source"
+  },
+  {
+    "index": 3,
+    "scheme_id": "disability_pension_001",
+    "name": "National Social Assistance Programme - Disability Pension",
+    "category": "Social Welfare",
+    "state": "All India",
+    "description": "Financial support for persons with disabilities. Monthly pension for those with 80% or more disability.",
+    "text": "National Social Assistance Programme - Disability Pension Financial support for persons with disabilities. Monthly pension for those with 80% or more disability. Social Welfare disability pension handicapped pwd divyang nsap 80% or more disability BPL family Age 18-59 years"
+  },
+  {
+    "index": 4,
+    "scheme_id": "mgnrega_001",
+    "name": "Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA)",
+    "category": "Employment",
+    "state": "All India",
+    "description": "Provides 100 days of guaranteed wage employment to rural households. Focuses on creating durable assets.",
+    "text": "Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA) Provides 100 days of guaranteed wage employment to rural households. Focuses on creating durable assets. Employment employment rural mgnrega work wage job nrega Rural household Adult member willing to do unskilled manual work"
+  },
+  {
+    "index": 5,
+    "scheme_id": "girl_scholarship_001",
+    "name": "National Scholarship Portal - Girl Child Scholarship",
+    "category": "Education",
+    "state": "All India",
+    "description": "Scholarships for girl students from economically weaker sections. Covers tuition fees and other expenses.",
+    "text": "National Scholarship Portal - Girl Child Scholarship Scholarships for girl students from economically weaker sections. Covers tuition fees and other expenses. Education scholarship girl education student women study Girl student Family income below Rs. 6 lakh Minimum 50% marks"
+  },
+  {
+    "index": 6,
+    "scheme_id": "pmjdy_001",
+    "name": "Pradhan Mantri Jan Dhan Yojana (PMJDY)",
+    "category": "Financial Inclusion",
+    "state": "All India",
+    "description": "Financial inclusion scheme providing zero-balance bank accounts. Includes RuPay debit card and accident insurance.",
+    "text": "Pradhan Mantri Jan Dhan Yojana (PMJDY) Financial inclusion scheme providing zero-balance bank accounts. Includes RuPay debit card and accident insurance. Financial Inclusion bank account financial inclusion jan dhan pmjdy Indian citizen No existing bank account"
+  },
+  {
+    "index": 7,
+    "scheme_id": "pmjay_001",
+    "name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY)",
+    "category": "Healthcare",
+    "state": "All India",
+    "description": "Health insurance scheme providing coverage up to Rs. 5 lakh per family per year. Cashless treatment at empaneled hospitals.",
+    "text": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY) Health insurance scheme providing coverage up to Rs. 5 lakh per family per year. Cashless treatment at empaneled hospitals. Healthcare health insurance medical hospital ayushman treatment pmjay Bottom 40% of population as per SECC database Eligible families receive Ayushman card"
+  },
+  {
+    "index": 8,
+    "scheme_id": "pmkisan_001",
+    "name": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+    "category": "Agriculture",
+    "state": "All India",
+    "description": "Income support to farmer families. Rs. 6000 per year in three equal installments through direct benefit transfer.",
+    "text": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN) Income support to farmer families. Rs. 6000 per year in three equal installments through direct benefit transfer. Agriculture farmer agriculture kisan farming income pmkisan Small and marginal farmers Landholding farmers"
+  },
+  {
+    "index": 9,
+    "scheme_id": "ssy_001",
+    "name": "Sukanya Samriddhi Yojana",
+    "category": "Financial Savings",
+    "state": "All India",
+    "description": "Savings scheme for girl child. High interest rate and tax benefits. Maturity at age 21 or marriage after 18 years.",
+    "text": "Sukanya Samriddhi Yojana Savings scheme for girl child. High interest rate and tax benefits. Maturity at age 21 or marriage after 18 years. Financial Savings girl child savings sukanya investment daughter ssy Maximum 2 girl children per family"
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZELIA PDF Audit Report",
+  "type": "object",
+  "required": ["version", "workflow", "schema_files", "summary", "strict_ready", "findings"],
+  "properties": {
+    "version": {"type": "string"},
+    "workflow": {"type": "string"},
+    "schema_files": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "templates_dir": {"type": "string"},
+    "placeholders_dir": {"type": "string"},
+    "summary": {
+      "type": "object",
+      "required": ["critical", "high", "medium", "low", "info", "total"],
+      "properties": {
+        "critical": {"type": "integer", "minimum": 0},
+        "high": {"type": "integer", "minimum": 0},
+        "medium": {"type": "integer", "minimum": 0},
+        "low": {"type": "integer", "minimum": 0},
+        "info": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0}
+      }
+    },
+    "strict_ready": {"type": "boolean"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule_id", "severity", "message", "remediation"],
+        "properties": {
+          "id": {"type": "string"},
+          "rule_id": {"type": "string"},
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"]
+          },
+          "message": {"type": "string"},
+          "remediation": {"type": "string"},
+          "evidence": {"type": "object"},
+          "node_refs": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "file_refs": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

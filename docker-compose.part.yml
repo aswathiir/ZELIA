@@ -1,0 +1,10 @@
+frontend:
+  image: nginx:alpine
+  container_name: zelia-frontend
+  ports:
+    - "3000:80"
+  volumes:
+    - ./frontend/chw-console:/usr/share/nginx/html
+  networks:
+    - zelia-network
+  restart: unless-stopped

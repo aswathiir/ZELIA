@@ -1,0 +1,7 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+transformers==4.38.0
+pillow==10.1.0
+numpy==1.24.3
+# Note: torch installed separately in Dockerfile (CPU-only for faster builds)

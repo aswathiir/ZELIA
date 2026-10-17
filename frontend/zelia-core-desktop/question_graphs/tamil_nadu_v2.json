@@ -1,0 +1,87 @@
+{
+    "graph_id": "tamil_nadu_full_v1",
+    "version": "3.0",
+    "first_question_id": "q_name",
+    "questions": [
+        {
+            "id": "q_name",
+            "text": "What is the name of the head of the household?",
+            "type": "text",
+            "normalized_key": "name",
+            "pictogram_icon": "👤",
+            "next": "q_age"
+        },
+        {
+            "id": "q_age",
+            "text": "How old are you?",
+            "type": "int",
+            "normalized_key": "age",
+            "pictogram_icon": "🎂",
+            "next": "q_gender"
+        },
+        {
+            "id": "q_gender",
+            "text": "What is your gender? (Male, Female, Other)",
+            "type": "select",
+            "normalized_key": "gender",
+            "pictogram_icon": "🚻",
+            "next": "q_marital"
+        },
+        {
+            "id": "q_marital",
+            "text": "Are you married, single, widowed, or divorced?",
+            "type": "select",
+            "normalized_key": "marital_status",
+            "pictogram_icon": "💍",
+            "next": "q_children_count"
+        },
+        {
+            "id": "q_children_count",
+            "text": "How many children under 18 live in your household?",
+            "type": "int",
+            "normalized_key": "children_count",
+            "pictogram_icon": "👶",
+            "next": "q_occupation"
+        },
+        {
+            "id": "q_occupation",
+            "text": "What is your main job? (Farmer, Laborer, Unemployed, Student, etc.)",
+            "type": "select",
+            "normalized_key": "occupation",
+            "pictogram_icon": "⚒️",
+            "next": "q_income"
+        },
+        {
+            "id": "q_income",
+            "text": "What is your approximate monthly family income?",
+            "type": "int",
+            "normalized_key": "income",
+            "pictogram_icon": "💰",
+            "next": "q_housing"
+        },
+        {
+            "id": "q_housing",
+            "text": "What type of house do you live in? (Kutcha/Mud, Pucca/Concrete, Homeless)",
+            "type": "select",
+            "normalized_key": "housing_type",
+            "pictogram_icon": "🏠",
+            "next": "q_disability"
+        },
+        {
+            "id": "q_disability",
+            "text": "Does anyone in the family have a disability certification?",
+            "type": "bool",
+            "normalized_key": "disability",
+            "pictogram_icon": "♿",
+            "next": "q_docs"
+        },
+        {
+            "id": "q_docs",
+            "text": "Which documents do you have? (Ration Card, Aadhar, Bank Passbook, Job Card)",
+            "type": "multi_select",
+            "normalized_key": "documents_held",
+            "pictogram_icon": "📄",
+            "next": null
+        }
+    ]
+}

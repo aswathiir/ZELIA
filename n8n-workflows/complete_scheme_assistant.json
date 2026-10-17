@@ -1,0 +1,267 @@
+{
+    "name": "ZELIA Complete Scheme Assistant Workflow",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "scheme-assist",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "webhook-1",
+            "name": "Webhook - User Query",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "webhookId": "zelia-assist"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://retrieval-service:8007/search/hybrid",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{$node[\"Webhook - User Query\"].json[\"query\"]}}"
+                        },
+                        {
+                            "name": "k",
+                            "value": 5
+                        },
+                        {
+                            "name": "threshold",
+                            "value": 0.3
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "hybrid-search",
+            "name": "Hybrid Search (RAG)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract top results from hybrid search\nconst results = $input.item.json.results || [];\nconst stats = $input.item.json.stats || {};\n\n// Format context for LLM\nconst context = results.map((r, i) => \n  `[${i+1}] ${r.content.substring(0, 300)}...\\nSource: ${r.metadata.source_type}\\nScore: ${r.score}`\n).join('\\n\\n');\n\nreturn {\n  context: context,\n  scheme_count: results.length,\n  vector_results: stats.vector_results,\n  web_results: stats.web_results,\n  fallback_used: stats.fallback_used,\n  top_schemes: results.slice(0, 3)\n};"
+            },
+            "id": "format-context",
+            "name": "Format Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json[\"scheme_count\"]}}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "id": "has-results",
+            "name": "Has Results?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://rules-engine:8005/evaluate",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "scheme_id",
+                            "value": "={{$node[\"Format Context\"].json[\"top_schemes\"][0].metadata.scheme_id}}"
+                        },
+                        {
+                            "name": "applicant_data",
+                            "value": "={{$node[\"Webhook - User Query\"].json[\"user_data\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "check-eligibility",
+            "name": "Check Eligibility",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Build comprehensive response\nconst context = $node[\"Format Context\"].json.context;\nconst eligibility = $input.item.json;\nconst query = $node[\"Webhook - User Query\"].json.query;\n\nconst response = {\n  query: query,\n  schemes_found: $node[\"Format Context\"].json.scheme_count,\n  search_stats: {\n    vector_results: $node[\"Format Context\"].json.vector_results,\n    web_results: $node[\"Format Context\"].json.web_results,\n    fallback_used: $node[\"Format Context\"].json.fallback_used\n  },\n  top_schemes: $node[\"Format Context\"].json.top_schemes,\n  eligibility_check: eligibility,\n  answer: `Based on your query \"${query}\", I found ${$node[\"Format Context\"].json.scheme_count} relevant schemes.\\n\\nTop recommendations:\\n${$node[\"Format Context\"].json.top_schemes.map((s, i) => `${i+1}. ${s.metadata.title || 'Scheme'} (Score: ${s.score.toFixed(2)})`).join('\\n')}\\n\\nEligibility: ${eligibility.eligible ? 'You appear to be eligible!' : 'Additional information needed: ' + (eligibility.missing_fields || []).join(', ')}`\n};\n\nreturn response;"
+            },
+            "id": "build-response",
+            "name": "Build Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1340,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "return {\n  query: $node[\"Webhook - User Query\"].json.query,\n  answer: \"I couldn't find any relevant schemes for your query. Please try rephrasing or contact support for assistance.\",\n  schemes_found: 0\n};"
+            },
+            "id": "no-results",
+            "name": "No Results Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/log-interaction",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{$node[\"Webhook - User Query\"].json[\"query\"]}}"
+                        },
+                        {
+                            "name": "response",
+                            "value": "={{$json}}"
+                        },
+                        {
+                            "name": "timestamp",
+                            "value": "={{new Date().toISOString()}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "log-interaction",
+            "name": "Log Interaction",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook - User Query": {
+            "main": [
+                [
+                    {
+                        "node": "Hybrid Search (RAG)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Hybrid Search (RAG)": {
+            "main": [
+                [
+                    {
+                        "node": "Format Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Context": {
+            "main": [
+                [
+                    {
+                        "node": "Has Results?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Results?": {
+            "main": [
+                [
+                    {
+                        "node": "Check Eligibility",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Results Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Eligibility": {
+            "main": [
+                [
+                    {
+                        "node": "Build Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Response": {
+            "main": [
+                [
+                    {
+                        "node": "Log Interaction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "No Results Response": {
+            "main": [
+                [
+                    {
+                        "node": "Log Interaction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 1,
+    "updatedAt": "2025-12-25T06:00:00.000Z",
+    "versionId": "1"
+}

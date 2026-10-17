@@ -1,0 +1,388 @@
+{
+    "name": "Document Submission Pipeline",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "document-submit",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "webhook-doc",
+            "name": "Document Upload Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Validate input and set defaults\nconst input = $input.item.json.body || $input.item.json;\n\n// Validate required fields\nif (!input.document && !input.document_base64 && !input.image_url) {\n  throw new Error('Missing document: provide document, document_base64, or image_url');\n}\n\nreturn {\n  document: input.document || input.document_base64,\n  document_id: input.document_id || `doc_${Date.now()}`,\n  scheme_id: input.scheme_id || 'unknown',\n  bucket: input.bucket || 'zelia-submissions',\n  language: input.language || 'en',\n  source: input.source || 'webhook',\n  timestamp: new Date().toISOString()\n};"
+            },
+            "id": "validate-input",
+            "name": "Validate Input",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ],
+            "continueOnFail": false
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://ocr-service:8003/extract",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"image\": \"{{$json.document}}\", \"language\": \"{{$json.language}}\"}",
+                "options": {
+                    "timeout": 60000,
+                    "retry": {
+                        "enabled": true,
+                        "maxTries": 3,
+                        "waitBetweenTries": 2000
+                    }
+                }
+            },
+            "id": "ocr-extract",
+            "name": "OCR Extraction",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                680,
+                300
+            ],
+            "notes": "Extract text from document image",
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.error === undefined}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "ocr-success-check",
+            "name": "OCR Success?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://layout-worker:8006/analyze",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"words\": {{$json.words || []}}, \"boxes\": {{$json.boxes || []}}, \"image\": \"{{$node['Validate Input'].json.document}}\"}",
+                "options": {
+                    "timeout": 60000,
+                    "retry": {
+                        "enabled": true,
+                        "maxTries": 2,
+                        "waitBetweenTries": 2000
+                    }
+                }
+            },
+            "id": "layoutlm-analyze",
+            "name": "LayoutLM Analysis",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1120,
+                200
+            ],
+            "notes": "Document structure understanding",
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "jsCode": "// Handle OCR failure - create fallback response\nconst inputData = $node['Validate Input'].json;\n\nreturn {\n  document_type: 'unknown',\n  extracted_fields: {},\n  confidence: 0,\n  ocr_text: '',\n  needs_manual_review: true,\n  error: 'OCR extraction failed',\n  document_id: inputData.document_id,\n  status: 'ocr_failed'\n};\n"
+            },
+            "id": "ocr-fallback",
+            "name": "OCR Fallback",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Map extracted data to schema\nconst ocr = $node['OCR Extraction']?.json || {};\nconst layout = $node['LayoutLM Analysis']?.json || {};\n\n// Smart mapping logic combining text and layout info\nconst fields = {\n  // Default mappings from OCR text\n  full_text: ocr.text || '',\n  \n  // Enhance with LayoutLM entities if available\n  ...layout.entities\n};\n\n// Calculate confidence\nconst confidence = layout.confidence || (ocr.text ? 0.7 : 0);\n\nreturn {\n  extracted_fields: fields,\n  confidence: confidence,\n  needs_manual_review: confidence < 0.8,\n  status: 'processed',\n  document_id: $node['Validate Input']?.json?.document_id\n};\n"
+            },
+            "id": "field-mapping",
+            "name": "Field Mapping",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.confidence}}",
+                            "operation": "largerEqual",
+                            "value2": 0.7
+                        }
+                    ]
+                }
+            },
+            "id": "confidence-check",
+            "name": "High Confidence?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://rules-engine:8005/evaluate",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"scheme_id\": \"{{$json.scheme_id}}\", \"applicant_data\": {{$json.extracted_fields}}}",
+                "options": {
+                    "timeout": 15000,
+                    "retry": {
+                        "enabled": true,
+                        "maxTries": 3,
+                        "waitBetweenTries": 1000
+                    }
+                }
+            },
+            "id": "auto-eligibility",
+            "name": "Auto Eligibility Check",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1780,
+                100
+            ],
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/submissions",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"applicant_data\": {{$node['Field Mapping'].json.extracted_fields}}, \"eligibility\": {{$json}}, \"status\": \"approved\", \"document_reference\": \"{{$node['Field Mapping'].json.document_id}}\", \"scheme_id\": \"{{$node['Field Mapping'].json.scheme_id}}\", \"confidence\": {{$node['Field Mapping'].json.confidence}}}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "create-submission",
+            "name": "Create Submission",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                2000,
+                100
+            ],
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://submission-service:8004/submissions",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"applicant_data\": {{$json.extracted_fields}}, \"status\": \"pending_review\", \"document_reference\": \"{{$json.document_id}}\", \"scheme_id\": \"{{$json.scheme_id}}\", \"review_reason\": \"Low OCR confidence ({{$json.confidence}})\", \"confidence\": {{$json.confidence}}}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "manual-review",
+            "name": "Flag for Manual Review",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1780,
+                300
+            ],
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "jsCode": "try {\n  // Helper to safely get node data\n  const getData = (name) => {\n    try {\n      return $(name).first().json;\n    } catch (e) {\n      try {\n        return $node[name].json;\n      } catch (e2) {\n        return {};\n      }\n    }\n  };\n\n  // Get data from executed paths\n  const successSub = getData('Create Submission');\n  const manualSub = getData('Flag for Manual Review');\n  const submission = Object.keys(successSub).length > 0 ? successSub : manualSub;\n\n  const successField = getData('Field Mapping');\n  const failField = getData('OCR Fallback');\n  const fieldData = Object.keys(successField).length > 0 ? successField : failField;\n\n  // Determine final status\n  let status = 'unknown';\n  let message = '';\n\n  if (fieldData.status === 'ocr_failed') {\n    status = 'failed';\n    message = 'OCR extraction failed - document needs manual processing';\n  } else if (fieldData.needs_manual_review) {\n    status = 'pending_review';\n    message = 'Document submitted for CHW review due to low confidence';\n  } else {\n    status = submission.status || 'processed';\n    message = 'Document processed successfully';\n  }\n\n  return {\n    success: status !== 'failed',\n    submission_id: submission.submission_id || submission.id || `sub_${Date.now()}`,\n    document_id: fieldData.document_id || 'unknown',\n    status: status,\n    extracted_fields: fieldData.extracted_fields || {},\n    confidence: fieldData.confidence || 0,\n    needs_review: fieldData.needs_manual_review || false,\n    message: message,\n    processed_at: new Date().toISOString()\n  };\n} catch (err) {\n  return {\n    success: false,\n    status: 'error',\n    message: 'Workflow Build Error: ' + err.message\n  };\n}"
+            },
+            "id": "final-response",
+            "name": "Build Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2220,
+                200
+            ]
+        }
+    ],
+    "connections": {
+        "Document Upload Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Input": {
+            "main": [
+                [
+                    {
+                        "node": "OCR Extraction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OCR Extraction": {
+            "main": [
+                [
+                    {
+                        "node": "OCR Success?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OCR Success?": {
+            "main": [
+                [
+                    {
+                        "node": "LayoutLM Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "OCR Fallback",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "LayoutLM Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "Field Mapping",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OCR Fallback": {
+            "main": [
+                [
+                    {
+                        "node": "Build Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Field Mapping": {
+            "main": [
+                [
+                    {
+                        "node": "High Confidence?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "High Confidence?": {
+            "main": [
+                [
+                    {
+                        "node": "Auto Eligibility Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Flag for Manual Review",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auto Eligibility Check": {
+            "main": [
+                [
+                    {
+                        "node": "Create Submission",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Submission": {
+            "main": [
+                [
+                    {
+                        "node": "Build Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Flag for Manual Review": {
+            "main": [
+                [
+                    {
+                        "node": "Build Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "saveManualExecutions": true,
+        "callerPolicy": "any"
+    },
+    "staticData": null,
+    "tags": [
+        "document-processing",
+        "ocr",
+        "layoutlm"
+    ],
+    "triggerCount": 0,
+    "updatedAt": "2026-01-16T10:00:00.000Z",
+    "versionId": "v2-fixed"
+}

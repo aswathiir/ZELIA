@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZELIA Field Map",
+  "type": "object",
+  "required": ["version", "priority_fields", "templates"],
+  "properties": {
+    "version": {"type": "string"},
+    "priority_fields": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["strategy", "fields", "status"],
+        "properties": {
+          "strategy": {"type": "object"},
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["page", "x", "y", "fontSize"],
+              "properties": {
+                "page": {"type": "integer", "minimum": 0},
+                "x": {"type": "number"},
+                "y": {"type": "number"},
+                "fontSize": {"type": "number", "exclusiveMinimum": 0},
+                "required": {"type": "boolean"}
+              }
+            }
+          },
+          "status": {"type": "string"},
+          "notes": {"type": "string"}
+        }
+      }
+    }
+  }
+}

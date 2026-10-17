@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZELIA Template Manifest",
+  "type": "object",
+  "required": ["version", "templates_dir", "template_count", "templates", "deferred"],
+  "properties": {
+    "version": {"type": "string"},
+    "templates_dir": {"type": "string"},
+    "include_bundle": {"type": "boolean"},
+    "template_count": {"type": "integer", "minimum": 0},
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["template_key", "path", "size_bytes", "sha256", "deferred"],
+        "properties": {
+          "template_key": {"type": "string"},
+          "path": {"type": "string"},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string"},
+          "page_count": {"type": ["integer", "null"], "minimum": 1},
+          "is_scanned": {"type": "boolean"},
+          "deferred": {"type": "boolean"}
+        }
+      }
+    },
+    "deferred": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["template_key", "reason"],
+        "properties": {
+          "template_key": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    }
+  }
+}

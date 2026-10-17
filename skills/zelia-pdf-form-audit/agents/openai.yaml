@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZELIA PDF Audit"
+  short_description: "Audit and gate ZELIA PDF autofill pipeline."
+  default_prompt: "Audit ZELIA PDF form filling gaps and generate deterministic remediation steps with strict production gates."

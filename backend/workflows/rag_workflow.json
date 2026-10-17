@@ -1,0 +1,104 @@
+{
+    "name": "ZELIA RAG Pipeline",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "query",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://retrieval-service:8007/search",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{$node[\"Webhook\"].json[\"query\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Vector Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                660,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsonWithoutKey": true
+            },
+            "name": "Format Context",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                860,
+                300
+            ],
+            "func": "const results = items[0].json;\nconst context = results.map(r => r.content).join('\\n---\\n');\nreturn [{json: {context: context}}];"
+        },
+        {
+            "parameters": {
+                "model": "gpt-3.5-turbo",
+                "prompt": "=Context:\n{{$node[\"Format Context\"].json[\"context\"]}}\n\nQuestion:\n{{$node[\"Webhook\"].json[\"query\"]}}\n\nAnswer based on the context:",
+                "options": {}
+            },
+            "name": "LLM Generate",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                1060,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Vector Search",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Vector Search": {
+            "main": [
+                [
+                    {
+                        "node": "Format Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Context": {
+            "main": [
+                [
+                    {
+                        "node": "LLM Generate",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

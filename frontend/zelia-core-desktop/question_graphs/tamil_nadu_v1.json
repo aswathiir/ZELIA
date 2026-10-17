@@ -1,0 +1,28 @@
+{
+  "graph_id": "tamil_nadu_v1",
+  "version": "1.0",
+  "first_question_id": "q_head_name",
+  "questions": [
+    {
+      "id": "q_head_name",
+      "text": "What is the head of household name?",
+      "type": "text",
+      "normalized_key": "head_of_household_name",
+      "next": "q_head_age"
+    },
+    {
+      "id": "q_head_age",
+      "text": "What is the age of the head of household?",
+      "type": "number",
+      "normalized_key": "head_age",
+      "next": "q_monthly_income"
+    },
+    {
+      "id": "q_monthly_income",
+      "text": "What is the monthly income of the household?",
+      "type": "number",
+      "normalized_key": "monthly_income",
+      "next": null
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+{
+    "name": "Ultravox Voice Full Orchestration",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "create-voice-session",
+                "responseMode": "lastNode"
+            },
+            "id": "1",
+            "name": "Create Voice Session (Webhook)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                200,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.ultravox.ai/api/calls",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-API-Key",
+                            "value": "YOUR_ULTRAVOX_API_KEY"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyContentType": "json",
+                "jsonBody": "={\n  \"systemPrompt\": \"You are a helpful assistant. Extract intent and entities from user voice input.\"\n}"
+            },
+            "id": "2",
+            "name": "Call Ultravox API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                460,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "boolean": [],
+                    "number": [],
+                    "string": [
+                        {
+                            "name": "joinUrl",
+                            "value": "={{$json[\"joinUrl\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "3",
+            "name": "Extract Join URL",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 2,
+            "position": [
+                720,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "voice-transcript",
+                "responseMode": "lastNode"
+            },
+            "id": "4",
+            "name": "Receive Transcript (Webhook)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                200,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:8002/ocr",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyContentType": "json",
+                "jsonBody": "={{$json}}"
+            },
+            "id": "5",
+            "name": "Call OCR Service",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                460,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:8003/extract",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyContentType": "json",
+                "jsonBody": "={{$json}}"
+            },
+            "id": "6",
+            "name": "Call LayoutLM Service",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                720,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Assume LayoutLM returns a field called \"embedding\"\nreturn [{ json: { embedding: $json.embedding } }];"
+            },
+            "id": "7",
+            "name": "Prepare Embedding",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                960,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "http://localhost:9000/search?vector={{$json.embedding}}",
+                "responseFormat": "json",
+                "jsonParameters": true
+            },
+            "id": "8",
+            "name": "Annoy Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1200,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://your-pinecone-index.svc.pinecone.io/query",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Api-Key",
+                            "value": "YOUR_PINECONE_API_KEY"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyContentType": "json",
+                "jsonBody": "={\n  \"vector\": {{ $json.embedding }},\n  \"topK\": 5\n}"
+            },
+            "id": "9",
+            "name": "Pinecone Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1440,
+                460
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "boolean": [],
+                    "number": [],
+                    "string": [
+                        {
+                            "name": "annoyResults",
+                            "value": "={{$json[\"annoyResults\"]}}"
+                        },
+                        {
+                            "name": "pineconeResults",
+                            "value": "={{$json[\"pineconeResults\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "10",
+            "name": "Combine Results",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 2,
+            "position": [
+                1680,
+                460
+            ]
+        }
+    ],
+    "connections": {
+        "Create Voice Session (Webhook)": {
+            "main": [
+                [
+                    {
+                        "node": "Call Ultravox API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Call Ultravox API": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Join URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Join URL": {
+            "main": []
+        },
+        "Receive Transcript (Webhook)": {
+            "main": [
+                [
+                    {
+                        "node": "Call OCR Service",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Call OCR Service": {
+            "main": [
+                [
+                    {
+                        "node": "Call LayoutLM Service",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Call LayoutLM Service": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Embedding",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Embedding": {
+            "main": [
+                [
+                    {
+                        "node": "Annoy Search",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Pinecone Search",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Annoy Search": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Pinecone Search": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Combine Results": {
+            "main": []
+        }
+    }
+}

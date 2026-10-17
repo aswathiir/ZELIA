@@ -1,0 +1,422 @@
+{
+  "name": "ZELIA Voice Pipeline v3 - Complete End-to-End",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ultravox/call-ended",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Call Ended Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "zelia-call-ended-v3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json;\nconst messages = body.messages || [];\nconst transcript = messages\n  .map(m => `${m.role || 'user'}: ${m.text || m.content || ''}`)\n  .join('\\n');\n\nreturn {\n  household_hash: body.household_hash || '',\n  call_id: body.call_id || '',\n  phone_number: body.customer_number || body.phone_number || '',\n  transcript: transcript,\n  metadata: body.metadata || {}\n};"
+      },
+      "id": "node-prepare",
+      "name": "Prepare Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.GROQ_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3-8b-8192"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\":\"system\",\"content\":\"You are a precise data extractor. Extract these entities from the transcript if mentioned: name, age, address, monthly_income, dob, state, gender, phone.\\nReturn ONLY valid JSON with those keys. If not mentioned, exclude the key or set null.\\nFor state, use the full Indian state name (e.g., Karnataka, Tamil Nadu, Maharashtra, Kerala, etc.).\\nFor gender, use male/female/other.\"},{\"role\":\"user\",\"content\":\"{{ $node['Prepare Transcript'].json.transcript }}\"}]"
+            },
+            {
+              "name": "response_format",
+              "value": "={\"type\":\"json_object\"}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "node-groq",
+      "name": "Extract Entities via Groq",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const STATE_MAP = {\n  'karnataka': 'KA', 'tamil nadu': 'TN', 'maharashtra': 'MH',\n  'andhra pradesh': 'AP', 'telangana': 'TS', 'kerala': 'KL',\n  'uttar pradesh': 'UP', 'rajasthan': 'RJ', 'west bengal': 'WB',\n  'madhya pradesh': 'MP', 'gujarat': 'GJ', 'odisha': 'OD',\n  'punjab': 'PB', 'haryana': 'HR', 'bihar': 'BR', 'assam': 'AS',\n  'jharkhand': 'JH', 'chhattisgarh': 'CG', 'uttarakhand': 'UK',\n  'himachal pradesh': 'HP', 'goa': 'GA', 'manipur': 'MN',\n  'meghalaya': 'ML', 'mizoram': 'MZ', 'nagaland': 'NL',\n  'sikkim': 'SK', 'tripura': 'TR', 'arunachal pradesh': 'AR'\n};\n\nconst groqResp = $input.item.json;\nconst content = groqResp?.choices?.[0]?.message?.content || '{}';\n\nlet extracted = {};\ntry { extracted = JSON.parse(content); } catch(e) {}\n\nconst stateName = (extracted.state || '').toLowerCase().trim();\nconst state_code = STATE_MAP[stateName] || 'KA';\n\nconst prepData = $node['Prepare Transcript'].json;\n\nreturn {\n  ...extracted,\n  state_code: state_code,\n  household_hash: prepData.household_hash,\n  call_id: prepData.call_id,\n  phone_number: prepData.phone_number\n};"
+      },
+      "id": "node-parse",
+      "name": "Parse Entities + Map State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rules-engine:8005/evaluate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "profile",
+              "value": "={\"name\": \"{{ $json.name }}\", \"age\": {{ $json.age || 0 }}, \"monthly_income\": {{ $json.monthly_income || 0 }}, \"state_code\": \"{{ $json.state_code }}\", \"gender\": \"{{ $json.gender || '' }}\", \"address\": \"{{ $json.address || '' }}\"}"
+            },
+            {
+              "name": "top_n",
+              "value": "=3"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-rules",
+      "name": "Find Eligible Schemes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rulesResult = $input.item.json;\nconst schemes = rulesResult.eligible_schemes || rulesResult.schemes || rulesResult.results || [];\nconst best = Array.isArray(schemes) && schemes.length > 0 ? schemes[0] : null;\n\nconst parseData = $node['Parse Entities + Map State'].json;\n\nreturn {\n  ...parseData,\n  best_scheme_id: best?.scheme_id || best?.id || 'ka-old-age-pension',\n  best_scheme_name: best?.scheme_name || best?.name || 'Government Pension Scheme',\n  all_schemes: schemes\n};"
+      },
+      "id": "node-select-scheme",
+      "name": "Select Best Scheme",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://submission-service:8004/submissions/create-from-call",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "household_hash",
+              "value": "={{ $json.household_hash }}"
+            },
+            {
+              "name": "best_scheme_id",
+              "value": "={{ $json.best_scheme_id }}"
+            },
+            {
+              "name": "best_scheme_name",
+              "value": "={{ $json.best_scheme_name }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.name || '' }}"
+            },
+            {
+              "name": "age",
+              "value": "={{ $json.age || null }}"
+            },
+            {
+              "name": "address",
+              "value": "={{ $json.address || '' }}"
+            },
+            {
+              "name": "gender",
+              "value": "={{ $json.gender || '' }}"
+            },
+            {
+              "name": "monthly_income",
+              "value": "={{ $json.monthly_income || null }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.phone || $json.phone_number || '' }}"
+            },
+            {
+              "name": "state",
+              "value": "={{ $json.state || '' }}"
+            },
+            {
+              "name": "call_id",
+              "value": "={{ $json.call_id || '' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-create-submission",
+      "name": "Create Submission Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const submissionData = $input.item.json;\nconst schemeData = $node['Select Best Scheme'].json;\n\nconst scheme_id = schemeData.best_scheme_id || 'ka-old-age-pension';\n\nconst SCHEME_TEMPLATE = {\n  'ka-old-age-pension': 'pension1.pdf',\n  'ka-widow-pension': 'pension1.pdf',\n  'widow_pension_001': 'pension1.pdf',\n  'old_age_pension_001': 'pension1.pdf',\n  'ka-disability-pension': 'disabledgovt.pdf',\n  'disability_pension_001': 'disabledgovt.pdf',\n  'pmjay': 'Application_for_assiatance.pdf',\n  'girl_scholarship_001': 'pratibhaschem.pdf',\n  'ration_apl_001': 'formsandregister.pdf'\n};\nconst template = SCHEME_TEMPLATE[scheme_id] || 'pension1.pdf';\n\nconst FIELD_MAP = {\n  'pension1.pdf': [\n    {field_id:'name', x:400, y:712, page:1, fontSize:10},\n    {field_id:'age', x:400, y:648, page:1, fontSize:10},\n    {field_id:'date_of_birth', x:460, y:648, page:1, fontSize:10},\n    {field_id:'gender', x:400, y:627, page:1, fontSize:10},\n    {field_id:'address', x:400, y:478, page:1, fontSize:9},\n    {field_id:'phone', x:400, y:440, page:1, fontSize:10},\n    {field_id:'aadhaar_number', x:400, y:415, page:1, fontSize:10},\n    {field_id:'annual_income', x:400, y:352, page:1, fontSize:10}\n  ],\n  'disabledgovt.pdf': [\n    {field_id:'name', x:380, y:680, page:1, fontSize:10},\n    {field_id:'age', x:380, y:640, page:1, fontSize:10},\n    {field_id:'address', x:380, y:580, page:1, fontSize:9},\n    {field_id:'phone', x:380, y:540, page:1, fontSize:10},\n    {field_id:'aadhaar_number', x:380, y:500, page:1, fontSize:10}\n  ]\n};\n\nconst field_values = {\n  name: schemeData.name || '',\n  age: String(schemeData.age || ''),\n  date_of_birth: schemeData.dob || '',\n  gender: schemeData.gender || '',\n  address: schemeData.address || '',\n  phone: schemeData.phone || schemeData.phone_number || '',\n  aadhaar_number: schemeData.aadhaar_number || '',\n  annual_income: String(schemeData.monthly_income || '')\n};\n\nreturn {\n  template_path: `/app/templates/${template}`,\n  form_fields: FIELD_MAP[template] || FIELD_MAP['pension1.pdf'],\n  field_values: field_values,\n  household_hash: schemeData.household_hash,\n  scheme_id: scheme_id,\n  submission_id: submissionData.submission_id || ''\n};"
+      },
+      "id": "node-build-pdf-payload",
+      "name": "Build PDF Fill Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://form-filler-service:8013/fill-form",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template_path",
+              "value": "={{ $json.template_path }}"
+            },
+            {
+              "name": "form_fields",
+              "value": "={{ $json.form_fields }}"
+            },
+            {
+              "name": "field_values",
+              "value": "={{ $json.field_values }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-fill-pdf",
+      "name": "Fill PDF Form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fillResult = $input.item.json;\nconst buildData = $node['Build PDF Fill Payload'].json;\n\nconst ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);\nconst filename = `${buildData.household_hash}/filled_forms/${buildData.scheme_id}_${ts}.pdf`;\n\nreturn {\n  bucket: 'filled-forms',\n  filename: filename,\n  document_data: fillResult.filled_document_base64 || '',\n  fields_empty: fillResult.fields_empty || [],\n  fill_confidence: fillResult.fill_confidence || 0,\n  household_hash: buildData.household_hash,\n  scheme_id: buildData.scheme_id,\n  submission_id: buildData.submission_id\n};"
+      },
+      "id": "node-build-upload",
+      "name": "Build Upload Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://form-filler-service:8013/upload",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "bucket",
+              "value": "={{ $json.bucket }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $json.filename }}"
+            },
+            {
+              "name": "document_data",
+              "value": "={{ $json.document_data }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-upload-minio",
+      "name": "Upload PDF to MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const uploadResult = $input.item.json;\nconst buildData = $node['Build Upload Payload'].json;\n\nconst storage_path = uploadResult.storage_path || buildData.filename;\nconst filled_pdf_uri = `minio://${storage_path}`;\n\nreturn {\n  household_hash: buildData.household_hash,\n  scheme_id: buildData.scheme_id,\n  filled_pdf_uri: filled_pdf_uri,\n  fields_empty: buildData.fields_empty || [],\n  fill_confidence: buildData.fill_confidence || 0,\n  submission_id: buildData.submission_id\n};"
+      },
+      "id": "node-build-update",
+      "name": "Build Update Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://submission-service:8004/submissions/update-filled-pdf",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "household_hash",
+              "value": "={{ $json.household_hash }}"
+            },
+            {
+              "name": "scheme_id",
+              "value": "={{ $json.scheme_id }}"
+            },
+            {
+              "name": "filled_pdf_uri",
+              "value": "={{ $json.filled_pdf_uri }}"
+            },
+            {
+              "name": "fields_empty",
+              "value": "={{ $json.fields_empty }}"
+            },
+            {
+              "name": "fill_confidence",
+              "value": "={{ $json.fill_confidence }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-update-submission",
+      "name": "Update Submission with PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const updateResult = $input.item.json;\nconst buildData = $node['Build Update Payload'].json;\nconst schemeData = $node['Select Best Scheme'].json;\n\nreturn {\n  household_hash: buildData.household_hash,\n  status: updateResult.submission_status || 'pdf_ready',\n  filled_pdf_uri: buildData.filled_pdf_uri,\n  fields_empty: buildData.fields_empty || [],\n  best_scheme: {\n    scheme_id: schemeData.best_scheme_id,\n    scheme_name: schemeData.best_scheme_name\n  }\n};"
+      },
+      "id": "node-build-notify",
+      "name": "Build Notify Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ultravox-handler:8000/webhook/workflow-complete",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "household_hash",
+              "value": "={{ $json.household_hash }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.status }}"
+            },
+            {
+              "name": "filled_pdf_uri",
+              "value": "={{ $json.filled_pdf_uri }}"
+            },
+            {
+              "name": "fields_empty",
+              "value": "={{ $json.fields_empty }}"
+            },
+            {
+              "name": "best_scheme",
+              "value": "={{ $json.best_scheme }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-notify-frontend",
+      "name": "Notify Frontend via WebSocket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3320, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pipeline_complete\",\"household_hash\":\"{{ $node['Build Notify Payload'].json.household_hash }}\",\"filled_pdf_uri\":\"{{ $node['Build Notify Payload'].json.filled_pdf_uri }}\",\"fields_empty_count\":{{ ($node['Build Notify Payload'].json.fields_empty || []).length }}}"
+      },
+      "id": "node-respond",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3540, 300]
+    }
+  ],
+  "connections": {
+    "Call Ended Webhook": {
+      "main": [[{"node": "Prepare Transcript", "type": "main", "index": 0}]]
+    },
+    "Prepare Transcript": {
+      "main": [[{"node": "Extract Entities via Groq", "type": "main", "index": 0}]]
+    },
+    "Extract Entities via Groq": {
+      "main": [[{"node": "Parse Entities + Map State", "type": "main", "index": 0}]]
+    },
+    "Parse Entities + Map State": {
+      "main": [[{"node": "Find Eligible Schemes", "type": "main", "index": 0}]]
+    },
+    "Find Eligible Schemes": {
+      "main": [[{"node": "Select Best Scheme", "type": "main", "index": 0}]]
+    },
+    "Select Best Scheme": {
+      "main": [[{"node": "Create Submission Record", "type": "main", "index": 0}]]
+    },
+    "Create Submission Record": {
+      "main": [[{"node": "Build PDF Fill Payload", "type": "main", "index": 0}]]
+    },
+    "Build PDF Fill Payload": {
+      "main": [[{"node": "Fill PDF Form", "type": "main", "index": 0}]]
+    },
+    "Fill PDF Form": {
+      "main": [[{"node": "Build Upload Payload", "type": "main", "index": 0}]]
+    },
+    "Build Upload Payload": {
+      "main": [[{"node": "Upload PDF to MinIO", "type": "main", "index": 0}]]
+    },
+    "Upload PDF to MinIO": {
+      "main": [[{"node": "Build Update Payload", "type": "main", "index": 0}]]
+    },
+    "Build Update Payload": {
+      "main": [[{"node": "Update Submission with PDF", "type": "main", "index": 0}]]
+    },
+    "Update Submission with PDF": {
+      "main": [[{"node": "Build Notify Payload", "type": "main", "index": 0}]]
+    },
+    "Build Notify Payload": {
+      "main": [[{"node": "Notify Frontend via WebSocket", "type": "main", "index": 0}]]
+    },
+    "Notify Frontend via WebSocket": {
+      "main": [[{"node": "Send Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": {},
+  "tags": [{"name": "production"}, {"name": "voice-pipeline"}, {"name": "v3"}],
+  "pinData": {}
+}

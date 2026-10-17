@@ -1,0 +1,569 @@
+{
+  "id": "IJPL6b4yqlOayL0N",
+  "name": "ZELIA Complete - v28b (Fresh)",
+  "active": true,
+  "versionId": "500341fa-967b-4a50-947b-7da1e1df2941",
+  "activeVersionId": "2df480ca-aad4-481b-831e-7106b6910d58",
+  "nodes": [
+    {
+      "id": "9f1896bd-7245-4e2a-839c-8e9623b8848a",
+      "name": "Ultravox Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1008,
+        -64
+      ],
+      "webhookId": "ultravox-simple",
+      "parameters": {
+        "multipleMethods": false,
+        "httpMethod": "POST",
+        "path": "ultravox/call-ended",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "responseCode": 200,
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "1390f32a-185f-4c77-85d9-783eba0f5ba8",
+      "name": "Translate Input (Sarvam)",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -896,
+        -64
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "\n// Prepare data for translation - passthrough to HTTP Request node\nconst inputItem = $input.first().json;\nconst webhookData = inputItem.body || inputItem;\nconst language = webhookData.language || 'en';\nconst messagesArray = webhookData.messages || [];\n\nconst userMessages = messagesArray\n  .filter(m => m.role === 'user')\n  .map(m => m.text)\n  .join(' ');\n\n// Language code mapping for Sarvam AI\nconst sarvamLangMap = {\n  'hi': 'hi-IN', 'ta': 'ta-IN', 'te': 'te-IN',\n  'kn': 'kn-IN', 'ml': 'ml-IN', 'gu': 'gu-IN',\n  'mr': 'mr-IN', 'bn': 'bn-IN', 'pa': 'pa-IN',\n  'or': 'or-IN'\n};\n\nreturn {\n  json: {\n    ...webhookData,\n    original_language: language,\n    original_text: userMessages,\n    translated_text: userMessages,\n    sarvam_lang_code: sarvamLangMap[language] || null,\n    translation_skipped: true\n  }\n};\n",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "a1bcc390-16ec-4be8-988c-2cdac5e97a8a",
+      "name": "Extract Profile (Groq)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -736,
+        -64
+      ],
+      "parameters": {
+        "preBuiltAgentsCalloutHttpRequest": "",
+        "curlImport": "",
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "none",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GROQ_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Extract user profile from voice transcript. Return ONLY valid JSON with fields: name (string, the person's full name), age (number), monthly_income (number), marital_status (widowed/married/single), state_code (2-letter Indian state code), district (string, the district name), address (string, the full address mentioned), occupation (string), disability_status (boolean), disability_percentage (number 0-100), gender (male/female). If a field is not mentioned, use null.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.translated_text }}\"\n    }\n  ],\n  \"response_format\": { \"type\": \"json_object\" },\n  \"temperature\": 0.1\n}",
+        "options": {
+          "timeout": 30000
+        },
+        "infoMessage": ""
+      },
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7f106258-570a-470f-8458-bf22b1c50f76",
+      "name": "Parse Profile + Hash",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -576,
+        -64
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const inputData = $('Translate Input (Sarvam)').first().json || {};\nconst modelResponse = $input.first().json || {};\n\nfunction asString(v) {\n  return v == null ? '' : String(v);\n}\n\nfunction parseModelProfile(resp) {\n  try {\n    const content = resp?.choices?.[0]?.message?.content;\n    if (!content) return null;\n    const cleaned = asString(content)\n      .replace(/^```json\\s*/i, '')\n      .replace(/^```\\s*/i, '')\n      .replace(/```$/i, '')\n      .trim();\n    const parsed = JSON.parse(cleaned);\n    return parsed && typeof parsed === 'object' ? parsed : null;\n  } catch (e) {\n    return null;\n  }\n}\n\nfunction detectStateCode(text) {\n  const t = asString(text).toLowerCase();\n  const map = {\n    'karnataka': 'KA',\n    'tamil nadu': 'TN',\n    'tamilnadu': 'TN',\n    'maharashtra': 'MH',\n    'uttar pradesh': 'UP',\n    'rajasthan': 'RJ',\n    'kerala': 'KL',\n    'andhra pradesh': 'AP',\n    'telangana': 'TG',\n    'delhi': 'DL',\n  };\n  for (const [k, v] of Object.entries(map)) {\n    if (t.includes(k)) return v;\n  }\n  return null;\n}\n\nfunction fallbackExtract(rawText) {\n  const text = asString(rawText);\n  const lower = text.toLowerCase();\n  const p = {};\n\n  const nameMatch = text.match(/my name is\\s+([a-zA-Z .'-]{2,60})/i) || text.match(/i am\\s+([a-zA-Z .'-]{2,60})/i);\n  if (nameMatch) p.name = asString(nameMatch[1]).trim();\n\n  const ageMatch = text.match(/(\\d{1,3})\\s*(?:years?|yrs?|year old|y\\/o)/i);\n  if (ageMatch) p.age = parseInt(ageMatch[1], 10);\n\n  const incomeMatch =\n    text.match(/monthly income(?: is)?\\s*(?:rs\\.?|₹)?\\s*([0-9,]+)/i) ||\n    text.match(/earn(?:ing|ings)?(?: is)?\\s*(?:rs\\.?|₹)?\\s*([0-9,]+)/i) ||\n    text.match(/income(?: is)?\\s*(?:rs\\.?|₹)?\\s*([0-9,]+)/i);\n  if (incomeMatch) p.monthly_income = parseInt(incomeMatch[1].replace(/,/g, ''), 10);\n\n  const addrMatch = text.match(/(?:live at|address is|from)\\s+([^.;]+)/i);\n  if (addrMatch) p.address = asString(addrMatch[1]).trim();\n\n  if (lower.includes('female')) p.gender = 'female';\n  else if (lower.includes('male')) p.gender = 'male';\n\n  if (lower.includes('widow') || lower.includes('widowed')) p.marital_status = 'widowed';\n  else if (lower.includes('married')) p.marital_status = 'married';\n  else if (lower.includes('single')) p.marital_status = 'single';\n\n  const districtMatch = text.match(/\\b(mysuru|mysore|chennai|coimbatore|bengaluru|bangalore|jaipur|pune|mumbai|lucknow)\\b/i);\n  if (districtMatch) p.district = districtMatch[1];\n\n  const stateCode = detectStateCode(text);\n  if (stateCode) p.state_code = stateCode;\n\n  if (/\\bunemploy(ed|ment)?\\b/i.test(text)) p.occupation = 'unemployed';\n  else if (/\\bfarmer\\b/i.test(text)) p.occupation = 'farmer';\n  else if (/\\blabou?r\\b/i.test(text)) p.occupation = 'labour';\n\n  const disPct = text.match(/(\\d{1,3})\\s*%/);\n  if (/\\bdisab/i.test(text)) p.disability_status = true;\n  if (disPct) p.disability_percentage = parseInt(disPct[1], 10);\n\n  return p;\n}\n\nfunction mergeProfile(modelProfile, fallbackProfile) {\n  const model = modelProfile && typeof modelProfile === 'object' ? modelProfile : {};\n  const fb = fallbackProfile && typeof fallbackProfile === 'object' ? fallbackProfile : {};\n  const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && String(v).trim() !== '');\n\n  const monthlyIncome = Number(pick(model.monthly_income, fb.monthly_income));\n\n  return {\n    name: pick(model.name, fb.name, model.applicant_name, fb.applicant_name) || null,\n    age: Number.isFinite(Number(pick(model.age, fb.age))) ? Number(pick(model.age, fb.age)) : null,\n    gender: pick(model.gender, fb.gender) || 'not_specified',\n    district: pick(model.district, fb.district) || null,\n    address: pick(model.address, fb.address) || null,\n    monthly_income: Number.isFinite(monthlyIncome) ? monthlyIncome : null,\n    annual_income: Number.isFinite(Number(pick(model.annual_income, fb.annual_income)))\n      ? Number(pick(model.annual_income, fb.annual_income))\n      : (Number.isFinite(monthlyIncome) ? monthlyIncome * 12 : null),\n    marital_status: pick(model.marital_status, fb.marital_status) || 'not_specified',\n    state_code: pick(model.state_code, fb.state_code, detectStateCode(inputData.translated_text || inputData.original_text || '')) || 'ALL',\n    occupation: pick(model.occupation, fb.occupation) || 'not_specified',\n    disability_status: Boolean(pick(model.disability_status, fb.disability_status)),\n    disability_percentage: Number.isFinite(Number(pick(model.disability_percentage, fb.disability_percentage)))\n      ? Number(pick(model.disability_percentage, fb.disability_percentage))\n      : 0,\n  };\n}\n\nconst modelProfile = parseModelProfile(modelResponse);\nconst transcriptText =\n  inputData.translated_text ||\n  inputData.original_text ||\n  (Array.isArray(inputData.messages) ? inputData.messages.filter((m) => m.role === 'user').map((m) => m.text).join(' ') : '');\nconst fallbackProfile = fallbackExtract(transcriptText);\nconst profile = mergeProfile(modelProfile, fallbackProfile);\n\nconst phoneNumber = inputData.customer_number || '+910000000000';\nconst hashInput = phoneNumber + '_zelia_salt_2026';\nlet hash = 5381;\nfor (let i = 0; i < hashInput.length; i++) {\n  hash = ((hash << 5) + hash) + hashInput.charCodeAt(i);\n  hash = hash & hash;\n}\nconst householdIdHash = Math.abs(hash).toString(16).padStart(16, '0');\n\nreturn {\n  json: {\n    call_id: inputData.call_id || `call_${Date.now()}`,\n    phone_number: inputData.customer_number,\n    household_id_hash: householdIdHash,\n    original_language: inputData.original_language || 'en',\n    sarvam_lang_code: inputData.sarvam_lang_code || null,\n    raw_query: transcriptText,\n    original_text: inputData.original_text || null,\n    user_profile: {\n      name: profile.name,\n      applicant_name: profile.name,\n      age: profile.age,\n      gender: profile.gender,\n      district: profile.district,\n      address: profile.address,\n      monthly_income: profile.monthly_income,\n      annual_income: profile.annual_income,\n      marital_status: profile.marital_status,\n      state_code: profile.state_code,\n      occupation: profile.occupation,\n      disability_status: profile.disability_status,\n      disability_percentage: profile.disability_percentage\n    },\n    paralinguistic: {\n      confidence: inputData.metadata?.confidence || 0.5,\n      tone: inputData.metadata?.tone || 'neutral',\n      urgency: inputData.metadata?.urgency || 'normal',\n      location: inputData.metadata?.location || null\n    },\n    profile_source: modelProfile ? 'groq' : 'fallback_regex',\n    extraction_timestamp: new Date().toISOString()\n  }\n};\n",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "c81f1ef9-f550-40a8-8d9c-924afb893537",
+      "name": "Check Eligibility (SQL)",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        -352,
+        -64
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "=WITH profile AS (\n  SELECT\n    UPPER(COALESCE('{{ ($json.user_profile.state_code || \"ALL\").toString().trim() }}','ALL')) AS state_code,\n    LOWER(COALESCE('{{ ($json.user_profile.marital_status || \"not_specified\").toString().trim() }}','not_specified')) AS marital_status,\n    LOWER(COALESCE('{{ ($json.user_profile.gender || \"not_specified\").toString().trim() }}','not_specified')) AS gender,\n    LOWER(COALESCE('{{ ($json.user_profile.occupation || \"not_specified\").toString().trim() }}','not_specified')) AS occupation,\n    {{ Number($json.user_profile.age || 0) }}::numeric AS age,\n    {{ Number($json.user_profile.monthly_income || 0) }}::numeric AS monthly_income,\n    {{ Number($json.user_profile.annual_income || (($json.user_profile.monthly_income || 0) * 12)) }}::numeric AS annual_income,\n    {{ $json.user_profile.disability_status ? 'TRUE' : 'FALSE' }}::boolean AS disability_status,\n    {{ Number($json.user_profile.disability_percentage || 0) }}::numeric AS disability_percentage\n), scored AS (\n  SELECT\n    s.scheme_id,\n    s.scheme_name,\n    s.benefits,\n    s.description,\n    s.required_documents,\n    s.pdf_template_key,\n    COALESCE(s.state_code, 'ALL') AS scheme_state_code,\n    (\n      CASE\n        WHEN COALESCE(s.state_code, 'ALL') = p.state_code THEN 20\n        WHEN COALESCE(s.state_code, 'ALL') = 'ALL' THEN 16\n        ELSE 0\n      END\n      + CASE WHEN COALESCE(s.pdf_template_key, '') <> '' THEN 8 ELSE 0 END\n      + CASE WHEN (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(pension|benefit|subsidy|assist|insurance|allowance|welfare|livelihood|employment|training|scheme)' THEN 8 ELSE 0 END\n      + CASE WHEN p.annual_income > 0 AND p.annual_income <= 100000 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(bpl|income|assistance|support|pension|subsidy)' THEN 10 ELSE 0 END\n      + CASE WHEN p.marital_status = 'widowed' AND LOWER(COALESCE(s.scheme_name, '')) LIKE '%widow%' THEN 24 ELSE 0 END\n      + CASE WHEN p.marital_status <> 'widowed' AND LOWER(COALESCE(s.scheme_name, '')) LIKE '%widow%' THEN -8 ELSE 0 END\n      + CASE WHEN p.age >= 55 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(old age|pension|senior|elderly)' THEN 24 ELSE 0 END\n      + CASE WHEN p.age >= 45 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(student|school|college|class 9|class 10|class 11|class 12|laptop|bicycle)' THEN -30 ELSE 0 END\n      + CASE WHEN (p.occupation LIKE '%unemploy%' OR p.occupation = 'not_specified' OR p.occupation = 'none')\n             AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(employment|skill|training|livelihood|job|self.?employment|allowance|assistance|pension)' THEN 18 ELSE 0 END\n      + CASE WHEN (p.occupation LIKE '%unemploy%' OR p.occupation = 'not_specified' OR p.occupation = 'none')\n             AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(student|school|college)' THEN -18 ELSE 0 END\n      + CASE WHEN p.disability_status IS TRUE AND p.disability_percentage >= 40 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(disab|udid)' THEN 24 ELSE 0 END\n      + CASE WHEN p.occupation LIKE '%farmer%' AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(kisan|farmer|agri|crop)' THEN 20 ELSE 0 END\n      + CASE WHEN p.gender = 'male' AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(women|girl)' THEN -6 ELSE 0 END\n      + CASE WHEN p.gender = 'female' AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(women|girl)' THEN 6 ELSE 0 END\n      + CASE WHEN p.gender = 'male' AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(pregnan|maternity|mother|lactat|girl child|women beneficiaries)' THEN -40 ELSE 0 END\n      + CASE WHEN p.age >= 45 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(pregnan|maternity|girl child|student|school|college)' THEN -20 ELSE 0 END\n      + CASE WHEN p.age >= 55 AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, ''))) ~ '(old age|senior|elderly|pension|allowance)' THEN 12 ELSE 0 END\n    )::numeric AS eligibility_score\n  FROM schemes s\n  CROSS JOIN profile p\n  WHERE COALESCE(s.state_code, 'ALL') IN ('ALL', p.state_code)\n    AND (LOWER(COALESCE(s.scheme_name, '')) || ' ' || LOWER(COALESCE(s.description, '')))\n      ~ '(scheme|pension|benefit|subsidy|assist|insurance|health|education|housing|livelihood|employment|training|farmer|women|child|disab|welfare|allowance|support)'\n), state_ranked AS (\n  SELECT * FROM scored sc\n  CROSS JOIN profile p\n  WHERE p.state_code <> 'ALL'\n    AND sc.scheme_state_code = p.state_code\n), fallback_all_ranked AS (\n  SELECT * FROM scored\n  WHERE scheme_state_code = 'ALL'\n)\nSELECT scheme_id, scheme_name, benefits, description, required_documents, pdf_template_key, scheme_state_code, eligibility_score\nFROM state_ranked\nUNION ALL\nSELECT scheme_id, scheme_name, benefits, description, required_documents, pdf_template_key, scheme_state_code, eligibility_score\nFROM fallback_all_ranked\nWHERE NOT EXISTS (SELECT 1 FROM state_ranked)\nORDER BY eligibility_score DESC, scheme_id\nLIMIT 8;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "YOWwFB0kUn3VsbnM",
+          "name": "Postgres account"
+        }
+      },
+      "typeVersion": 2.5,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "afd4d90a-55c2-412f-a840-e1eedb12fb84",
+      "name": "Has Eligible Schemes?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -128,
+        -64
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.scheme_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "5cdefa3f-4c5b-4ac1-9dd5-e5384943e321",
+      "name": "Build Response Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -128,
+        -272
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Build eligibility response with normalized template mapping contract\nconst callData = $('Parse Profile + Hash').first().json;\nconst rawSchemes = $input.all().map(item => item.json);\n\nif (rawSchemes.length === 0) {\n  return {\n    json: {\n      call_id: callData.call_id,\n      status: 'no_eligible_schemes',\n      message: 'Unfortunately, you do not currently qualify for any government schemes based on your profile.',\n      user_profile: callData.user_profile,\n      eligible_schemes: []\n    }\n  };\n}\n\nfunction normalizeRequiredDocs(value) {\n  if (Array.isArray(value)) {\n    return value.map((x) => String(x).trim()).filter((x) => x && x !== '[]' && x !== '{}');\n  }\n  if (typeof value === 'string') {\n    const t = value.trim();\n    if (!t || t === '[]' || t === '{}') return [];\n    if (t.startsWith('[') && t.endsWith(']')) {\n      try {\n        const parsed = JSON.parse(t);\n        if (Array.isArray(parsed)) return parsed.map((x) => String(x).trim()).filter(Boolean);\n      } catch (e) {}\n    }\n    return t.split(',').map((x) => x.trim()).filter((x) => x && x !== '[]' && x !== '{}');\n  }\n  return [];\n}\n\nconst schemeTemplateFallback = {\n  'ka-widow-pension': 'pension1.pdf',\n  'ka-old-age-pension': 'pension1.pdf',\n  'ka-disability-pension': 'disabledgovt.pdf',\n  'ka-destitute-pension': 'intimationform.pdf',\n  'pmjay': 'Application_for_assiatance.pdf',\n  'pm-kisan': 'jobskilltraining.pdf',\n  'pm-ujjwala': 'swasraya.pdf',\n  'nsap-ignoaps': 'niramaya.pdf'\n};\n\nconst schemes = rawSchemes.map((s) => {\n  const schemeId = s.scheme_id || s.id || null;\n  const templateKey = s.pdf_template_key || (schemeId ? schemeTemplateFallback[schemeId] : null) || null;\n  return {\n    ...s,\n    scheme_id: schemeId,\n    scheme_name: s.scheme_name || s.title || s.name || 'Unknown Scheme',\n    pdf_template_key: templateKey,\n    required_documents: normalizeRequiredDocs(s.required_documents),\n    benefits: s.benefits || s.benefit || ''\n  };\n});\n\nconst rankedSchemes = [...schemes].sort((a, b) => Number(b.eligibility_score || 0) - Number(a.eligibility_score || 0));\nlet primary = rankedSchemes[0] || {};\n\n// Ensure template key is always available for PDF stage.\nif (primary && !primary.pdf_template_key) {\n  primary.pdf_template_key = schemeTemplateFallback[primary.scheme_id] || 'Application_for_assiatance.pdf';\n}\n\nconst safeSchemes = rankedSchemes.map((s) => ({\n  ...s,\n  pdf_template_key: s.pdf_template_key || schemeTemplateFallback[s.scheme_id] || 'Application_for_assiatance.pdf',\n}));\n\n// Compute monthly benefits when numeric values are available in benefit text\nconst totalMonthlyBenefit = schemes.reduce((sum, s) => {\n  const txt = String(s.benefits || '');\n  const m = txt.match(/(?:Rs\\.?|₹)\\s*([0-9,]+)/i);\n  if (!m) return sum;\n  const val = parseInt(m[1].replace(/,/g, ''), 10);\n  return Number.isFinite(val) ? sum + val : sum;\n}, 0);\n\nreturn {\n  json: {\n    call_id: callData.call_id,\n    user_profile: callData.user_profile,\n    eligible_schemes: safeSchemes,\n    scheme_id: primary.scheme_id || null,\n    scheme_name: primary.scheme_name || null,\n    pdf_template_key: primary.pdf_template_key || null,\n    required_documents: primary.required_documents || [],\n    benefits: primary.benefits || '',\n    eligible_count: safeSchemes.length,\n    total_monthly_benefit: totalMonthlyBenefit,\n    status: 'schemes_found'\n  }\n};\n",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "85087c72-8da2-4379-aa71-565de83920c4",
+      "name": "Generate Response Text",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        96,
+        -272
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Generate natural language response\nconst data = $input.first().json;\n\nif (data.status === 'no_eligible_schemes') {\n  return {\n    json: {\n      ...data,\n      response_text: data.message,\n      response_type: 'no_match'\n    }\n  };\n}\n\nconst schemes = data.eligible_schemes;\nlet response = '';\n\nif (schemes.length === 1) {\n  const s = schemes[0];\n  response = `Good news! You are eligible for ${s.scheme_name}. This scheme provides ${s.benefits}. To apply, please visit your nearest Seva Sindhu kendra with the required documents.`;\n} else {\n  response = `Excellent news! Based on your profile, you are eligible for ${schemes.length} government schemes:\\n\\n`;\n  \n  schemes.forEach((s, i) => {\n    response += `${i + 1}. ${s.scheme_name}\\n`;\n    response += `   Benefits: ${s.benefits}\\n`;\n    if (s.description) {\n      response += `   Details: ${s.description.substring(0, 100)}...\\n`;\n    }\n    response += `\\n`;\n  });\n  \n  if (data.total_monthly_benefit > 0) {\n    response += `Total monthly benefits: Rs.${data.total_monthly_benefit.toLocaleString()}\\n\\n`;\n  }\n  \n  response += `To apply for these schemes, please visit your nearest Seva Sindhu kendra or government office with your Aadhar card, income certificate, and other required documents.`;\n}\n\nreturn {\n  json: {\n    ...data,\n    response_text: response,\n    response_type: 'success'\n  }\n};",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "2c3e285c-6acf-4e63-9521-e8ea2f827d73",
+      "name": "Record Consent",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        320,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Record Verbal Consent with paralinguistic verification\nconst data = $input.first().json;\nconst profile = $('Parse Profile + Hash').first().json;\n\nconst consentLedger = {\n  timestamp: new Date().toISOString(),\n  consent_verified: profile.paralinguistic.confidence >= 0.6,\n  tone: profile.paralinguistic.tone,\n  confidence: profile.paralinguistic.confidence,\n  urgency: profile.paralinguistic.urgency,\n  schemes_consented: data.eligible_schemes.map(s => s.scheme_id),\n  valid_for_days: 90,\n  expiry_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()\n};\n\nreturn {\n  json: {\n    ...data,\n    household_id_hash: profile.household_id_hash,\n    phone_number: profile.phone_number,\n    original_language: profile.original_language,\n    original_text: profile.original_text,\n    consent_ledger: consentLedger,\n    consent_recorded: consentLedger.consent_verified\n  }\n};",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "6abddf7f-47b3-46ea-be10-d135c3fbb69b",
+      "name": "Translate Response (Sarvam)",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        544,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const data = $input.first().json;\nconst language = data.original_language || 'en';\n\n// For non-English, add a note about native language response\nlet responseNative = data.response_text;\nif (language === 'hi') {\n    responseNative = '(Hindi translation will be provided via Sarvam AI) ' + data.response_text;\n} else if (language === 'ta') {\n    responseNative = '(Tamil translation will be provided via Sarvam AI) ' + data.response_text;\n} else if (language !== 'en') {\n    responseNative = '(Translation to ' + language + ' via Sarvam AI) ' + data.response_text;\n}\n\nreturn {\n    json: {\n          ...data,\n          response_native: responseNative,\n          response_english: data.response_text,\n          call_id: data.call_id,\n          eligible_schemes: data.eligible_schemes\n    }\n}",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "bfe670cf-a38f-454d-a743-281b8f62f324",
+      "name": "Store Household",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        752,
+        -160
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "=INSERT INTO households (household_id_hash, profile_json, paralinguistic_json, consent_ledger_json)\nVALUES (\n  '{{ $('Translate Response (Sarvam)').first().json.household_id_hash }}',\n  '{{ JSON.stringify($('Translate Response (Sarvam)').first().json.user_profile).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify({ confidence: $('Translate Response (Sarvam)').first().json.consent_ledger.confidence, tone: $('Translate Response (Sarvam)').first().json.consent_ledger.tone, urgency: $('Translate Response (Sarvam)').first().json.consent_ledger.urgency, original_language: $('Translate Response (Sarvam)').first().json.original_language }).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($('Translate Response (Sarvam)').first().json.consent_ledger).replace(/'/g, \"''\") }}'::jsonb\n)\nON CONFLICT (household_id_hash) DO UPDATE SET\n  profile_json = EXCLUDED.profile_json,\n  paralinguistic_json = EXCLUDED.paralinguistic_json,\n  consent_ledger_json = EXCLUDED.consent_ledger_json;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "YOWwFB0kUn3VsbnM",
+          "name": "Postgres account"
+        }
+      },
+      "typeVersion": 2.5,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "6c2d7543-4092-4499-b2d0-df0ce3299957",
+      "name": "Store in Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        976,
+        -160
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "=INSERT INTO submissions (call_id, scheme_id, status, applicant_data, form_data, household_hash)\nVALUES (\n  '{{ $('Generate Response Text').first().json.call_id }}',\n  '{{ ($('Generate Response Text').first().json.eligible_schemes && $('Generate Response Text').first().json.eligible_schemes[0]) ? $('Generate Response Text').first().json.eligible_schemes[0].scheme_id : \"general\" }}',\n  'pending_review',\n  '{{ JSON.stringify($('Generate Response Text').first().json.user_profile || {}).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify({ household_id_hash: $('Generate Response Text').first().json.household_id_hash, consent_recorded: $('Generate Response Text').first().json.consent_recorded, eligible_count: $('Generate Response Text').first().json.eligible_count, original_language: $('Generate Response Text').first().json.original_language }).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $('Parse Profile + Hash').first().json.household_id_hash }}'\n)\nON CONFLICT (call_id) DO UPDATE SET\n  applicant_data = EXCLUDED.applicant_data,\n  form_data = EXCLUDED.form_data,\n  household_hash = EXCLUDED.household_hash;\n\nINSERT INTO profile_assessments (call_id, phone_number, user_profile, eligible_schemes, response_text)\nVALUES (\n  '{{ $('Generate Response Text').first().json.call_id }}',\n  '{{ $('Generate Response Text').first().json.phone_number }}',\n  '{{ JSON.stringify($('Generate Response Text').first().json.user_profile || {}).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($('Generate Response Text').first().json.eligible_schemes || []).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ ($('Generate Response Text').first().json.response_text || \"\").replace(/'/g, \"''\") }}'\n)\nON CONFLICT (call_id) DO UPDATE SET\n  response_text = EXCLUDED.response_text;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "YOWwFB0kUn3VsbnM",
+          "name": "Postgres account"
+        }
+      },
+      "typeVersion": 2.5,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "3c9a2cb2-ec95-447a-8849-9d4cde07800a",
+      "name": "Generate PDF (pdf-lib)",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1200,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Fill ORIGINAL government template pages only (no appended summary page).\nconst { PDFDocument, StandardFonts } = require('pdf-lib');\n\nfunction sanitize(text) {\n  if (!text) return '';\n  return String(text)\n    .replace(/\\u20b9/g, 'Rs.')\n    .replace(/[\\u0900-\\u097F]/g, '')\n    .replace(/[\\u0B80-\\u0BFF]/g, '')\n    .replace(/[\\u0C80-\\u0CFF]/g, '')\n    .replace(/[\\u0D00-\\u0D7F]/g, '')\n    .replace(/[\\u0C00-\\u0C7F]/g, '')\n    .replace(/[\\u0A80-\\u0AFF]/g, '')\n    .replace(/[\\u0A00-\\u0A7F]/g, '')\n    .replace(/[\\u0980-\\u09FF]/g, '')\n    .replace(/[^\\x20-\\x7E\\xA0-\\xFF]/g, '')\n    .trim();\n}\n\nfunction firstNodeJson(name) {\n  try { return $(name).first().json; } catch (e) { return null; }\n}\n\nconst fieldMap = {\n  'Application_for_assiatance.pdf': { name: { page: 0, x: 404.75, y: 566.06, fontSize: 11.0 }, age: { page: 0, x: 404.75, y: 673.6, fontSize: 11.0 }, address: { page: 0, x: 404.75, y: 639.92, fontSize: 11.0 }, gender: { page: 0, x: 404.75, y: 606.24, fontSize: 11.0 } },\n  'childofjail.pdf': { name: { page: 0, x: 402.45, y: 702.78, fontSize: 11.0 }, age: { page: 0, x: 402.45, y: 669.31, fontSize: 11.0 }, address: { page: 0, x: 402.45, y: 635.85, fontSize: 11.0 }, gender: { page: 0, x: 402.45, y: 602.38, fontSize: 11.0 } },\n  'disabledgovt.pdf': { name: { page: 0, x: 404.82, y: 770.1, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 673.54, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 597.78, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n  'intimationform.pdf': { name: { page: 0, x: 404.82, y: 539.35, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 491.3, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 515.3, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n  'jobskilltraining.pdf': { name: { page: 0, x: 416.16, y: 665.28, fontSize: 11.0 }, age: { page: 0, x: 416.16, y: 633.6, fontSize: 11.0 }, address: { page: 0, x: 416.16, y: 601.92, fontSize: 11.0 }, gender: { page: 0, x: 416.16, y: 570.24, fontSize: 11.0 } },\n  'mathrjyothi.pdf': { name: { page: 0, x: 416.16, y: 665.28, fontSize: 11.0 }, age: { page: 0, x: 416.16, y: 633.6, fontSize: 11.0 }, address: { page: 0, x: 416.16, y: 601.92, fontSize: 11.0 }, gender: { page: 0, x: 416.16, y: 570.24, fontSize: 11.0 } },\n  'niramaya.pdf': { name: { page: 0, x: 416.16, y: 665.28, fontSize: 11.0 }, age: { page: 0, x: 416.16, y: 633.6, fontSize: 11.0 }, address: { page: 0, x: 416.16, y: 601.92, fontSize: 11.0 }, gender: { page: 0, x: 416.16, y: 570.24, fontSize: 11.0 } },\n  'old_age_pension_karnataka.pdf': { name: { page: 0, x: 404.82, y: 707.52, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 694.86, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 682.14, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n  'pension1.pdf': { name: { page: 0, x: 404.82, y: 707.52, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 694.86, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 682.14, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n  'pmjay_enrollment.pdf': { name: { page: 0, x: 404.75, y: 566.06, fontSize: 11.0 }, age: { page: 0, x: 404.75, y: 673.6, fontSize: 11.0 }, address: { page: 0, x: 404.75, y: 639.92, fontSize: 11.0 }, gender: { page: 0, x: 404.75, y: 606.24, fontSize: 11.0 } },\n  'pratibhaschem.pdf': { name: { page: 0, x: 404.6, y: 707.28, fontSize: 11.0 }, age: { page: 0, x: 404.6, y: 673.6, fontSize: 11.0 }, address: { page: 0, x: 404.6, y: 639.92, fontSize: 11.0 }, gender: { page: 0, x: 404.6, y: 606.24, fontSize: 11.0 } },\n  'stateaward.pdf': { name: { page: 0, x: 404.74, y: 707.01, fontSize: 11.0 }, age: { page: 0, x: 404.74, y: 673.34, fontSize: 11.0 }, address: { page: 0, x: 404.74, y: 639.68, fontSize: 11.0 }, gender: { page: 0, x: 404.74, y: 606.01, fontSize: 11.0 } },\n  'swasraya.pdf': { name: { page: 0, x: 404.82, y: 707.21, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 673.54, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 639.86, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n  'tamiltraining.pdf': { name: { page: 0, x: 416.16, y: 496.74, fontSize: 11.0 }, age: { page: 0, x: 416.16, y: 633.6, fontSize: 11.0 }, address: { page: 0, x: 416.16, y: 244.38, fontSize: 11.0 }, gender: { page: 0, x: 416.16, y: 570.24, fontSize: 11.0 } },\n  'widow_pension_karnataka.pdf': { name: { page: 0, x: 404.82, y: 707.52, fontSize: 11.0 }, age: { page: 0, x: 404.82, y: 694.86, fontSize: 11.0 }, address: { page: 0, x: 404.82, y: 682.14, fontSize: 11.0 }, gender: { page: 0, x: 404.82, y: 606.18, fontSize: 11.0 } },\n};\n\nconst schemeTemplateMap = {\n  'ka-widow-pension': 'pension1.pdf',\n  'ka-old-age-pension': 'pension1.pdf',\n  'ka-disability-pension': 'disabledgovt.pdf',\n  'pmjay': 'Application_for_assiatance.pdf',\n  'pm-kisan': 'jobskilltraining.pdf'\n};\n\nconst data = firstNodeJson('Build Response Data') || firstNodeJson('Store in Supabase') || ($input.first().json || {});\nconst parseData = firstNodeJson('Parse Profile + Hash') || {};\n\nlet profile = data.user_profile;\nif (typeof profile === 'string') {\n  try { profile = JSON.parse(profile); } catch (e) { profile = {}; }\n}\nif (!profile) profile = {};\n\nconst schemes = data.eligible_schemes || [];\nconst schemeIdRaw = data.scheme_id || (schemes[0] && schemes[0].scheme_id) || 'unknown';\nconst schemeId = String(schemeIdRaw).replace(/[^A-Za-z0-9_-]/g, '_');\nconst callIdRaw = parseData.call_id || data.call_id || ('call_' + Date.now());\nconst callId = String(callIdRaw).replace(/[^A-Za-z0-9_-]/g, '_');\nconst householdHashRaw = data.household_id_hash || parseData.household_id_hash || '';\nconst householdHash = String(householdHashRaw || '').replace(/[^a-fA-F0-9]/g, '').toLowerCase();\nconst storagePrefix = householdHash || callId;\nconst templateKey = data.pdf_template_key || (schemes[0] && schemes[0].pdf_template_key) || schemeTemplateMap[schemeIdRaw] || schemeTemplateMap[schemeId] || null;\nif (!templateKey) {\n  throw new Error('Missing pdf_template_key for scheme: ' + schemeId);\n}\n\nconst blockedTemplateKeys = new Set(['widow_pension_karnataka.pdf','old_age_pension_karnataka.pdf','pmjay_enrollment.pdf']);\nif (blockedTemplateKeys.has(templateKey)) {\n  throw new Error('Blocked legacy placeholder template key: ' + templateKey);\n}\n\nconst overlayMap = fieldMap[templateKey];\nif (!overlayMap) {\n  throw new Error('Missing coordinate mapping for template: ' + templateKey);\n}\n\nconst requiredOverlayFields = ['name', 'age', 'address', 'gender'];\nfor (const f of requiredOverlayFields) {\n  if (!overlayMap[f]) {\n    throw new Error('Missing coordinate mapping for field \"' + f + '\" in template: ' + templateKey);\n  }\n}\nconst profileVals = {\n  name: sanitize(profile.name || profile.applicant_name || 'Applicant'),\n  age: sanitize(String(profile.age || '')),\n  address: sanitize(profile.address || [profile.district, profile.state_code].filter(Boolean).join(', ') || 'Not Provided'),\n  gender: sanitize(profile.gender || 'Not Provided')\n};\nconst missingProfileFields = Object.entries(profileVals)\n  .filter(([, v]) => !v || v === 'Not Provided')\n  .map(([k]) => k);\n\nconst inputBinary = ($input.first() && $input.first().binary) || {};\nconst binaryKey = inputBinary.data ? 'data' : Object.keys(inputBinary)[0];\nif (!binaryKey || !inputBinary[binaryKey] || !inputBinary[binaryKey].data) {\n  throw new Error('Template binary missing from Fetch Template node');\n}\n\nlet rawTemplateBytes;\ntry {\n  rawTemplateBytes = await this.helpers.getBinaryDataBuffer(0, binaryKey);\n} catch (e) {\n  const raw = inputBinary[binaryKey].data;\n  rawTemplateBytes = Buffer.isBuffer(raw) ? raw : Buffer.from(raw, 'base64');\n}\n\nconst pdfHeaderIndex = rawTemplateBytes.indexOf('%PDF-');\nif (pdfHeaderIndex < 0) {\n  throw new Error('Template is not a valid PDF for key: ' + templateKey);\n}\nconst templateBytes = rawTemplateBytes.slice(pdfHeaderIndex);\nif (templateBytes.length < 5000) {\n  throw new Error('Blocked placeholder-like template (too small) for key: ' + templateKey);\n}\nconst pdfDoc = await PDFDocument.load(templateBytes);\nconst pages = pdfDoc.getPages();\nif (!pages.length) {\n  throw new Error('Template has no pages: ' + templateKey);\n}\n\nconst font = await pdfDoc.embedFont(StandardFonts.Helvetica);\nfor (const [field, pos] of Object.entries(overlayMap)) {\n  const value = sanitize(profileVals[field] || '');\n  if (!value) continue;\n  const pageIdx = Math.max(0, Math.min(Number(pos.page || 0), pages.length - 1));\n  pages[pageIdx].drawText(value, {\n    x: Number(pos.x || 140),\n    y: Number(pos.y || 650),\n    size: Number(pos.fontSize || 11),\n    font\n  });\n}\n\nconst pdfBytes = await pdfDoc.save();\nconst filename = callId + '_' + schemeId + '_application.pdf';\nconst objectKey = storagePrefix + '/filled_forms/' + schemeId + '.pdf';\n\nreturn {\n  json: {\n    status: 'success',\n    render_mode: 'template_overlay_only',\n    call_id: callId,\n    household_id_hash: data.household_id_hash || parseData.household_id_hash || null,\n    scheme_id: schemeId,\n    filename: filename,\n    object_key: objectKey,\n    file_size: pdfBytes.length,\n    generated_at: new Date().toISOString(),\n    template_used: templateKey,\n    overlay_fields_applied: Object.keys(overlayMap),\n    missing_profile_fields: missingProfileFields,\n    user_profile: profileVals\n  },\n  binary: {\n    data: {\n      data: Buffer.from(pdfBytes).toString('base64'),\n      mimeType: 'application/pdf',\n      fileName: filename\n    }\n  }\n};\n",
+        "notice": ""
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "148c4af4-08d6-4d24-a7f2-1c69de272877",
+      "name": "Upload to MinIO",
+      "type": "n8n-nodes-base.s3",
+      "position": [
+        1424,
+        -160
+      ],
+      "parameters": {
+        "s3StandardNotice": "",
+        "resource": "file",
+        "operation": "upload",
+        "bucketName": "filled-forms",
+        "fileName": "={{ $('Generate PDF (pdf-lib)').first().json.object_key }}",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {},
+        "tagsUi": {}
+      },
+      "credentials": {
+        "s3": {
+          "id": "7yOpkfNyPNTNmlk8",
+          "name": "MinIO S3MinIO S3MinIO S3S3 account"
+        }
+      },
+      "typeVersion": 1,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "61a39306-a041-4039-adf2-7da7c57fa7b7",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1632,
+        -160
+      ],
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify((() => { const base = $('Build Response Data').first().json || {}; const parsed = $('Parse Profile + Hash').first().json || {}; const gpdf = $('Generate PDF (pdf-lib)').first().json || {}; const resp = $('Generate Response Text').first().json || {}; const required = Array.isArray(base.required_documents) ? base.required_documents : (typeof base.required_documents === 'string' ? base.required_documents.split(',').map((x) => x.trim()).filter(Boolean) : []); const missing = Array.isArray(gpdf.missing_profile_fields) ? gpdf.missing_profile_fields : []; const hasPdf = !!gpdf.object_key; return { success: true, call_id: base.call_id || parsed.call_id || null, household_id_hash: base.household_id_hash || parsed.household_id_hash || null, status: base.status || 'processed', response_text: resp.response_text || base.message || null, best_match_scheme: { scheme_id: base.scheme_id || null, scheme_name: base.scheme_name || null, benefits: base.benefits || null, pdf_template_key: base.pdf_template_key || null, required_documents: required }, scheme_id: base.scheme_id || null, scheme_name: base.scheme_name || null, pdf_template_key: base.pdf_template_key || null, eligible_schemes: Array.isArray(base.eligible_schemes) ? base.eligible_schemes : [], required_documents: required, missing_required_documents: missing, filled_pdf_uri: hasPdf ? ('minio://filled-forms/' + gpdf.object_key) : null, storage_path: hasPdf ? ('minio://filled-forms/' + gpdf.object_key) : null, next_action: hasPdf && missing.length === 0 ? 'review_filled_form' : 'upload_missing_documents' }; })()) }}",
+        "options": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "b85160e9-6320-48c7-aa3c-69a0922835f1",
+      "name": "No Schemes Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        96,
+        80
+      ],
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  status: 'no_eligible_schemes',\n  call_id: $('Parse Profile + Hash').first().json.call_id,\n  household_id_hash: $('Parse Profile + Hash').first().json.household_id_hash || null,\n  message: 'Unfortunately, you do not currently qualify for any government schemes based on your profile. Please check back later as new schemes may become available.',\n  best_match_scheme: null,\n  required_documents: [],\n  missing_required_documents: [],\n  eligible_schemes: [],\n  total_schemes: 0,\n  next_action: 'capture_more_profile_data'\n}) }}",
+        "options": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "f197530e-2cf1-454a-b2fb-b42f2660752d",
+      "name": "Fetch Template",
+      "type": "n8n-nodes-base.s3",
+      "position": [
+        1024,
+        -160
+      ],
+      "parameters": {
+        "s3StandardNotice": "",
+        "resource": "file",
+        "operation": "download",
+        "bucketName": "templates",
+        "fileKey": "={{ $json.pdf_template_key || ($json.eligible_schemes && $json.eligible_schemes[0] && $json.eligible_schemes[0].pdf_template_key) || $('Build Response Data').first().json.pdf_template_key }}",
+        "binaryPropertyName": "data"
+      },
+      "credentials": {
+        "s3": {
+          "id": "7yOpkfNyPNTNmlk8",
+          "name": "MinIO S3MinIO S3MinIO S3S3 account"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "update_db_pdf",
+      "name": "Update DB with PDF",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1520,
+        -160
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "=UPDATE submissions SET filled_pdf_uri = 'minio://filled-forms/{{ $('Generate PDF (pdf-lib)').first().json.object_key }}',     status = 'pending_review' WHERE call_id = '{{ $('Generate PDF (pdf-lib)').first().json.call_id }}';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "YOWwFB0kUn3VsbnM",
+          "name": "Postgres account"
+        }
+      },
+      "typeVersion": 2.5
+    }
+  ],
+  "connections": {
+    "Ultravox Webhook": {
+      "main": [
+        [
+          {
+            "node": "Translate Input (Sarvam)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Input (Sarvam)": {
+      "main": [
+        [
+          {
+            "node": "Extract Profile (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Profile (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Parse Profile + Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Profile + Hash": {
+      "main": [
+        [
+          {
+            "node": "Check Eligibility (SQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Eligibility (SQL)": {
+      "main": [
+        [
+          {
+            "node": "Has Eligible Schemes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Eligible Schemes?": {
+      "main": [
+        [
+          {
+            "node": "Build Response Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Schemes Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Response Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Response Text": {
+      "main": [
+        [
+          {
+            "node": "Record Consent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Consent": {
+      "main": [
+        [
+          {
+            "node": "Translate Response (Sarvam)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Response (Sarvam)": {
+      "main": [
+        [
+          {
+            "node": "Store Household",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Household": {
+      "main": [
+        [
+          {
+            "node": "Store in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Fetch Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF (pdf-lib)": {
+      "main": [
+        [
+          {
+            "node": "Upload to MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Template": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF (pdf-lib)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to MinIO": {
+      "main": [
+        [
+          {
+            "node": "Update DB with PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update DB with PDF": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

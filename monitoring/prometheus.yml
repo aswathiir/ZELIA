@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'zelia-services'
+    static_configs:
+      - targets: 
+        - 'zelia-submission:8004'
+        - 'zelia-rules:8005'
+        - 'zelia-retrieval:8007'
+        - 'zelia-ocr:8003'
+        - 'zelia-layout:8006'
+        - 'zelia-response-generator:8015'
+        - 'zelia-intent-detector:8011'

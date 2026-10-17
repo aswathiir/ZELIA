@@ -1,0 +1,1 @@
+ALTER TABLE audit_ledger ADD COLUMN IF NOT EXISTS status TEXT;

@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-02-23T07:27:34.006096Z",
+  "dataset_root": "dataset/govt/government_schemes/govt scheme",
+  "scope": [
+    "karnataka",
+    "tamilnadu",
+    "uttar-pradesh",
+    "maharashtra",
+    "rajasthan",
+    "central"
+  ],
+  "states": {
+    "karnataka": {
+      "files": 55,
+      "parsed": 55,
+      "upserted": 55,
+      "failed": 0
+    },
+    "tamilnadu": {
+      "files": 41,
+      "parsed": 41,
+      "upserted": 41,
+      "failed": 0
+    },
+    "uttar-pradesh": {
+      "files": 94,
+      "parsed": 94,
+      "upserted": 94,
+      "failed": 0
+    },
+    "maharashtra": {
+      "files": 80,
+      "parsed": 80,
+      "upserted": 80,
+      "failed": 0
+    },
+    "rajasthan": {
+      "files": 53,
+      "parsed": 53,
+      "upserted": 53,
+      "failed": 0
+    },
+    "central": {
+      "files": 205,
+      "parsed": 205,
+      "upserted": 205,
+      "failed": 0
+    }
+  },
+  "totals": {
+    "files": 528,
+    "parsed": 528,
+    "upserted": 528,
+    "failed": 0
+  },
+  "pinecone_seed_summary": {
+    "seeded_at": "2026-02-23T07:28:02.445898Z",
+    "index": "zelia",
+    "namespace": "schemes",
+    "rows_read": 536,
+    "vectors_upserted": 536,
+    "missing_metadata": 0,
+    "by_state": {
+      "ALL": 209,
+      "KA": 59,
+      "UP": 94,
+      "TN": 41,
+      "MH": 80,
+      "RJ": 53
+    }
+  }
+}

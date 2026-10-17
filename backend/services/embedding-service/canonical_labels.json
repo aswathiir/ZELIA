@@ -1,0 +1,137 @@
+{
+  "head_name": {
+    "canonical": "head_of_household_name",
+    "aliases": [
+      "head name", "தலைவர் பெயர்", "name of head", "household head",
+      "applicant name", "முதன்மை பெயர்", "family head name", "தலைவரின் பெயர்"
+    ],
+    "field_type": "text",
+    "required": true
+  },
+  "age": {
+    "canonical": "head_age",
+    "aliases": [
+      "age", "வயது", "years", "date of birth", "dob", "பிறந்த தேதி",
+      "years old", "வயது ஆண்டுகள்"
+    ],
+    "field_type": "number",
+    "required": true
+  },
+  "ration_card": {
+    "canonical": "ration_card_number",
+    "aliases": [
+      "ration card", "குடும்ப அட்டை", "card number", "ration no",
+      "அட்டை எண்", "family card", "ration card no", "குடும்ப அட்டை எண்"
+    ],
+    "field_type": "alphanum",
+    "required": false
+  },
+  "aadhar": {
+    "canonical": "aadhar_number",
+    "aliases": [
+      "aadhar", "ஆதார்", "uid", "aadhaar", "ஆதார் எண்",
+      "unique id", "aadhar no", "ஆதார் எண்ணிக்கை"
+    ],
+    "field_type": "number",
+    "required": false
+  },
+  "income": {
+    "canonical": "monthly_income",
+    "aliases": [
+      "income", "வருமானம்", "monthly income", "salary",
+      "மாத வருமானம்", "earnings", "monthly salary", "மாதாந்திர வருமானம்"
+    ],
+    "field_type": "number",
+    "required": true
+  },
+  "caste": {
+    "canonical": "caste_category",
+    "aliases": [
+      "caste", "சாதி", "category", "community", "வகை",
+      "sc/st/obc", "social category", "சமூக வகுப்பு"
+    ],
+    "field_type": "categorical",
+    "required": true
+  },
+  "disability": {
+    "canonical": "disability_status",
+    "aliases": [
+      "disability", "மாற்றுத்திறனாளி", "differently abled",
+      "handicapped", "physical disability", "உடல் குறை", "special needs"
+    ],
+    "field_type": "boolean",
+    "required": false
+  },
+  "children_count": {
+    "canonical": "number_of_children",
+    "aliases": [
+      "children", "குழந்தைகள்", "kids", "no of children",
+      "குழந்தைகள் எண்ணிக்கை", "dependents", "number of kids"
+    ],
+    "field_type": "number",
+    "required": true
+  },
+  "marital_status": {
+    "canonical": "marital_status",
+    "aliases": [
+      "marital status", "திருமண நிலை", "married", "widow",
+      "விதவை", "single", "widowed", "விதவையா"
+    ],
+    "field_type": "categorical",
+    "required": true
+  },
+  "address": {
+    "canonical": "residential_address",
+    "aliases": [
+      "address", "முகவரி", "residence", "location",
+      "வீட்டு முகவரி", "place", "house address", "வசிக்கும் முகவரி"
+    ],
+    "field_type": "text",
+    "required": true
+  },
+  "phone": {
+    "canonical": "phone_number",
+    "aliases": [
+      "phone", "தொலைபேசி", "mobile", "contact",
+      "தொலைபேசி எண்", "mobile number", "செல்பேசி"
+    ],
+    "field_type": "phone",
+    "required": false
+  },
+  "bank_account": {
+    "canonical": "bank_account_number",
+    "aliases": [
+      "bank account", "வங்கி கணக்கு", "account number",
+      "வங்கி கணக்கு எண்", "savings account", "சேமிப்பு கணக்கு"
+    ],
+    "field_type": "alphanum",
+    "required": false
+  },
+  "gender": {
+    "canonical": "gender",
+    "aliases": [
+      "gender", "பாலினம்", "sex", "male", "female",
+      "ஆண்", "பெண்", "gender identity"
+    ],
+    "field_type": "categorical",
+    "required": true
+  },
+  "occupation": {
+    "canonical": "occupation",
+    "aliases": [
+      "occupation", "தொழில்", "job", "work", "profession",
+      "வேலை", "employment", "தொழில் வகை"
+    ],
+    "field_type": "text",
+    "required": false
+  },
+  "education": {
+    "canonical": "education_level",
+    "aliases": [
+      "education", "கல்வி", "qualification", "degree",
+      "கல்வி நிலை", "schooling", "படிப்பு"
+    ],
+    "field_type": "categorical",
+    "required": false
+  }
+}
